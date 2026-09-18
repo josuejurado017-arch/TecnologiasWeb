@@ -17,7 +17,13 @@ $filters = [
 $userId = (int) $user['id_usuario'];
 $tutorias = $controller->index($role, $userId, $filters);
 $filterOptions = $controller->filterOptions($role, $userId);
-$messages = ['created' => 'Solicitud de tutoria creada correctamente.', 'updated' => 'Estado de tutoria actualizado correctamente.'];
+$messages = [
+    'created' => 'Solicitud de tutoria creada correctamente.',
+    'special-created' => 'Solicitud de horario especial enviada correctamente.',
+    'updated' => 'Estado de tutoria actualizado correctamente.',
+    'rescheduled' => 'Tutoria reprogramada correctamente.',
+    'attendance' => 'Asistencia registrada correctamente.',
+];
 $message = $messages[$_GET['message'] ?? ''] ?? null;
 $error = isset($_GET['error']) && is_string($_GET['error']) ? $_GET['error'] : null;
 

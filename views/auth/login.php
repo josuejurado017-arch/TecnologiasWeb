@@ -6,12 +6,12 @@ require __DIR__ . '/../layouts/header.php';
 <main class="auth-container">
     <section class="auth-intro">
         <div>
-            <span class="brand-mark">TA</span>
+            <img class="brand-logo" src="<?= e(app_url('Front/assets/img/upds-logo.svg')) ?>" alt="UPDS">
         </div>
         <div>
-            <span class="hero-kicker">Tutoria academica</span>
-            <h1>Aprender mejor, acompanado.</h1>
-            <p>Organiza tus sesiones de apoyo, conecta con tutores y sigue tu avance academico desde un solo lugar.</p>
+            <span class="hero-kicker">Portal de apoyo academico</span>
+            <h1>Aprende con el acompanamiento correcto.</h1>
+            <p>Encuentra tutores, agenda sesiones y organiza tu avance academico desde un espacio inspirado en la experiencia UPDS.</p>
         </div>
         <ul class="auth-points">
             <li>Agenda tutorias segun tu disponibilidad.</li>

@@ -5,6 +5,11 @@ declare(strict_types=1);
 $projectRoot = __DIR__;
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $requestPath = rawurldecode($requestPath);
+$legacyPrefix = '/TecnologiasWeb/php';
+$hasLegacyPrefix = strpos($requestPath, $legacyPrefix) === 0;
+if ($hasLegacyPrefix) {
+    $requestPath = substr($requestPath, strlen($legacyPrefix)) ?: '/';
+}
 
 $routes = [
     '/' => '/php/index.php',
@@ -66,7 +71,13 @@ $routes = [
     '/tutorias' => '/php/tutorias/index.php',
     '/tutorias/index.php' => '/php/tutorias/index.php',
     '/tutorias/create.php' => '/php/tutorias/create.php',
+    '/tutorias/especial.php' => '/php/tutorias/especial.php',
+    '/tutorias/especiales.php' => '/php/tutorias/especiales.php',
+    '/tutorias/special_status.php' => '/php/tutorias/special_status.php',
     '/tutorias/status.php' => '/php/tutorias/status.php',
+    '/tutorias/reschedule.php' => '/php/tutorias/reschedule.php',
+    '/tutorias/attendance.php' => '/php/tutorias/attendance.php',
+    '/tutorias/history.php' => '/php/tutorias/history.php',
     '/evaluaciones/' => '/php/evaluaciones/index.php',
     '/evaluaciones' => '/php/evaluaciones/index.php',
     '/evaluaciones/index.php' => '/php/evaluaciones/index.php',
@@ -74,6 +85,10 @@ $routes = [
     '/accesos/' => '/php/accesos/index.php',
     '/accesos' => '/php/accesos/index.php',
     '/accesos/index.php' => '/php/accesos/index.php',
+    '/accesos/export.php' => '/php/accesos/export.php',
+    '/reportes/tutorias.php' => '/php/reportes/tutorias.php',
+    '/reportes/tutorias/export.php' => '/php/reportes/export.php',
+    '/notificaciones/read.php' => '/php/notificaciones/read.php',
     '/permisos/' => '/php/permisos/index.php',
     '/permisos' => '/php/permisos/index.php',
     '/permisos/index.php' => '/php/permisos/index.php',
@@ -98,7 +113,7 @@ if (isset($routes[$requestPath])) {
     return;
 }
 
-foreach (['css', 'js'] as $assetDirectory) {
+foreach (['css', 'js', 'Front/assets'] as $assetDirectory) {
     $assetRoot = realpath($projectRoot . DIRECTORY_SEPARATOR . $assetDirectory);
     $assetPath = realpath($projectRoot . DIRECTORY_SEPARATOR . ltrim($requestPath, '/'));
 
@@ -108,6 +123,22 @@ foreach (['css', 'js'] as $assetDirectory) {
         && is_file($assetPath)
         && ($assetPath === $assetRoot || strpos($assetPath, $assetRoot . DIRECTORY_SEPARATOR) === 0)
     ) {
+        if ($hasLegacyPrefix) {
+            $mimeTypes = [
+                'css' => 'text/css; charset=UTF-8',
+                'js' => 'application/javascript; charset=UTF-8',
+                'svg' => 'image/svg+xml',
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'webp' => 'image/webp',
+            ];
+            $extension = strtolower(pathinfo($assetPath, PATHINFO_EXTENSION));
+            header('Content-Type: ' . ($mimeTypes[$extension] ?? 'application/octet-stream'));
+            readfile($assetPath);
+            return;
+        }
+
         return false;
     }
 }

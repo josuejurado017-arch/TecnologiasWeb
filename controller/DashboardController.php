@@ -15,4 +15,9 @@ final class DashboardController
     {
         return $this->model->summary($role, $userId);
     }
+
+    public function upcoming(string $role, int $userId): array
+    {
+        return $this->model->upcoming($role, $userId);
+    }
 }

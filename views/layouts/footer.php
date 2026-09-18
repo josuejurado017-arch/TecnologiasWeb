@@ -2,6 +2,6 @@
         </div>
     </div>
 <?php endif; ?>
-<script src="<?= e(app_url('js/app.js')) ?>" defer></script>
+<script src="<?= e(app_url('Front/assets/js/app.js')) ?>" defer></script>
 </body>
 </html>
