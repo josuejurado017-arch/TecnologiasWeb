@@ -1,0 +1,54 @@
+# Despliegue con Docker: aplicacion (Apache + PHP) y MySQL.
+# Las variables se leen del archivo .env de la raiz (mismo archivo que usa la
+# aplicacion sin Docker). Ver seccion "Docker" del README.
+services:
+  web:
+    build: .
+    image: tecnologiasweb:latest
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      # Vacio = enlaces relativos a la raiz; funciona con cualquier host o puerto.
+      APP_URL: ${DOCKER_APP_URL:-}
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-testdb}
+      DB_USER: ${DB_USER:-biblioteca_user}
+      DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env}
+      TZ: ${TZ:-America/La_Paz}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-testdb}
+      MYSQL_USER: ${DB_USER:-biblioteca_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD en .env}
+      TZ: ${TZ:-America/La_Paz}
+    volumes:
+      - db_data:/var/lib/mysql
+      # Migraciones aplicadas solo la primera vez que se crea el volumen.
+      # 007 (datos demo) se excluye a proposito; ver README para cargarlo.
+      - ./db/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./db/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
+      - ./db/003_permissions.sql:/docker-entrypoint-initdb.d/003_permissions.sql:ro
+      - ./db/004_student_registration.sql:/docker-entrypoint-initdb.d/004_student_registration.sql:ro
+      - ./db/005_student_catalog_permissions.sql:/docker-entrypoint-initdb.d/005_student_catalog_permissions.sql:ro
+      - ./db/006_tutor_permissions.sql:/docker-entrypoint-initdb.d/006_tutor_permissions.sql:ro
+      - ./db/008_tutorias_institucionales.sql:/docker-entrypoint-initdb.d/008_tutorias_institucionales.sql:ro
+      - ./db/009_tutoria_slots_especiales.sql:/docker-entrypoint-initdb.d/009_tutoria_slots_especiales.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  db_data:

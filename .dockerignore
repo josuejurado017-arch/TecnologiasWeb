@@ -1,0 +1,11 @@
+.git
+.gitignore
+.vscode
+.env
+.env.*
+!.env.example
+node_modules
+*.log
+Dockerfile
+compose.yaml
+.dockerignore

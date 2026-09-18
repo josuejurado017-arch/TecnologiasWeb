@@ -121,7 +121,7 @@ sudo bash deploy/install-ubuntu.sh
 Si el repositorio aun no existe en el servidor:
 
 ```bash
-git clone https://github.com/Mark21052017/TecnologiasWeb.git "$HOME/TecnologiasWeb"
+git clone https://github.com/josuejurado017-arch/TecnologiasWeb.git "$HOME/TecnologiasWeb"
 cd "$HOME/TecnologiasWeb"
 cp .env.example .env
 sudo bash deploy/install-ubuntu.sh
@@ -155,6 +155,53 @@ sudo bash deploy/install-ubuntu.sh
 ```
 
 Los cambios de estructura de la base se aplican ejecutando el script SQL de migracion correspondiente. Git no modifica automaticamente MySQL.
+
+## Docker (recomendado para el servidor)
+
+`compose.yaml` levanta la aplicacion (Apache + PHP 8.2, imagen construida desde `Dockerfile`) y MySQL 8.4 con un volumen persistente. Reemplaza al Apache y MySQL instalados en el host; BIND9 sigue en el host resolviendo `tutorias.local` hacia la IP del servidor.
+
+Requisitos en Ubuntu:
+
+```bash
+sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker "$USER"   # cerrar sesion y volver a entrar
+```
+
+Configuracion: el mismo `.env` de la raiz alimenta a Compose. Copiar `.env.example` y definir `DB_PASSWORD` y `MYSQL_ROOT_PASSWORD`; `DB_HOST` y `DB_PORT` se ignoran porque Compose apunta al servicio `db`. `APP_URL` dentro del contenedor queda vacio (enlaces relativos), asi el sitio responde igual por `http://tutorias.local/`, por IP o por `http://localhost:8080/` en desarrollo.
+
+Primer arranque (aplica automaticamente las migraciones 001-006, 008 y 009 al crear el volumen):
+
+```bash
+cd "$HOME/TecnologiasWeb"
+docker compose up -d --build
+docker compose exec web php deploy/docker/create-admin.php admin 'clave-segura'
+```
+
+Cargar datos demo solo en desarrollo:
+
+```bash
+docker compose exec -T db mysql -uroot -p"$MYSQL_ROOT_PASSWORD" testdb < db/007_demo_production_data.sql
+```
+
+Actualizar despues de un `git pull`:
+
+```bash
+docker compose up -d --build
+# Si hubo una migracion nueva (010, 011...), aplicarla a mano una sola vez:
+docker compose exec -T db mysql -uroot -p"$MYSQL_ROOT_PASSWORD" testdb < db/010_xxx.sql
+```
+
+Migrar la base existente del host al contenedor (una sola vez, antes del primer `up`, si ya habia datos en el MySQL de Ubuntu):
+
+```bash
+mysqldump -u root -p testdb > testdb.sql
+sudo systemctl disable --now apache2 mysql
+docker compose up -d db
+docker compose exec -T db mysql -uroot -p"$MYSQL_ROOT_PASSWORD" testdb < testdb.sql
+docker compose up -d --build
+```
+
+En Windows, para probar la imagen sin ocupar el puerto 80, usar `WEB_PORT=8080` en `.env` y abrir `http://localhost:8080/`. El instalador `deploy/install-ubuntu.sh` se conserva como alternativa sin Docker.
 
 ## Servidor PHP local en Windows
 
