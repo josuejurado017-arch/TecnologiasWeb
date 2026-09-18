@@ -31,12 +31,24 @@ Modulos disponibles:
 - `/tutorias/`: solicitudes y estados de tutorias.
 - `/evaluaciones/`: evaluaciones de tutorias realizadas.
 - `/accesos/`: reporte de auditoria para administradores.
+- `/reportes/tutorias.php`: reportes filtrables de tutorias y exportacion CSV para administradores.
+- `/db/009_tutoria_slots_especiales.sql`: espacios concretos derivados de disponibilidad y solicitudes de horario especial.
 - `/permisos/`: configuracion de accesos por rol y excepciones por usuario.
 - `/materias-disponibles/`, `/tutores-disponibles/` y `/horarios-disponibles/`: consultas de solo lectura para estudiantes.
 - `/postular-tutor.php`: postulación pública para cuentas tutor pendientes de aprobación.
 - `/mi-perfil-tutor/` y `/mis-materias/`: espacio privado del tutor.
+- `/tutorias/especial.php`: solicitud de una fecha y horario fuera de la disponibilidad publicada.
+- `/tutorias/especiales.php`: aprobacion o rechazo de solicitudes especiales para tutores y administradores.
 
-La operación de tutorías usa las tablas existentes sin migraciones adicionales. Los tutores administran sus materias y horarios; los estudiantes solo pueden solicitar sesiones dentro de un horario registrado. El sistema evita solapamientos de disponibilidad y de tutorías pendientes o confirmadas, controla las transiciones `pendiente -> confirmada -> realizada` y permite evaluar una sesión realizada una sola vez.
+## Datos demo para pruebas
+
+El script `db/007_demo_production_data.sql` carga datos de prueba sin borrar los existentes: cuentas, perfiles, materias, asignaciones, horarios, tutorias en todos los estados, evaluaciones y accesos historicos de los ultimos 60 dias. Puede ejecutarse nuevamente sin duplicar sus registros.
+
+Todas las cuentas creadas por el script usan la contrasena `Demo1234!`. Los usuarios tienen el formato `tutor_demo_01` a `tutor_demo_08` y `student_demo_01` a `student_demo_24`.
+
+En **Registro de accesos**, un administrador puede filtrar por fecha inicial y final y descargar el resultado en CSV.
+
+Los tutores administran sus materias y horarios; los estudiantes solicitan espacios concretos derivados de la disponibilidad publicada. El sistema evita solapamientos de disponibilidad y de tutorías pendientes o confirmadas, controla las transiciones `pendiente -> confirmada -> realizada`, permite evaluar una sesión realizada una sola vez y admite solicitudes especiales sujetas a aprobación del tutor.
 
 El registro publico esta disponible en `/register.php` y crea solamente cuentas de estudiante. La cuenta y su perfil academico se crean en una transaccion con estado `pendiente`; un administrador debe aprobarla desde **Cuentas de acceso** antes del primer inicio de sesion.
 
@@ -57,13 +69,17 @@ La base `testdb` debe existir antes de importar los scripts:
 ```bash
 # Usar una cuenta administrativa para crear tablas y relaciones.
 mysql -u administrador_mysql -p testdb < db/001_schema.sql
-# Usar el usuario de la aplicacion para cargar datos permitidos.
+# Usar el usuario de la aplicacion para cargar configuracion y permisos.
 mysql -u biblioteca_user -p testdb < db/002_seed.sql
 mysql -u biblioteca_user -p testdb < db/003_permissions.sql
 mysql -u biblioteca_user -p testdb < db/004_student_registration.sql
 mysql -u biblioteca_user -p testdb < db/005_student_catalog_permissions.sql
 mysql -u biblioteca_user -p testdb < db/006_tutor_permissions.sql
+mysql -u biblioteca_user -p testdb < db/008_tutorias_institucionales.sql
+mysql -u biblioteca_user -p testdb < db/009_tutoria_slots_especiales.sql
 ```
+
+`db/007_demo_production_data.sql` es solo para entornos de desarrollo o pruebas controladas. Crea cuentas activas con una contrasena conocida y no debe ejecutarse en produccion.
 
 Antes de activar el login, generar un hash real y descomentar el `INSERT` del administrador en `db/002_seed.sql`:
 
@@ -71,7 +87,7 @@ Antes de activar el login, generar un hash real y descomentar el `INSERT` del ad
 php -r "echo password_hash('cambiar-esta-clave', PASSWORD_DEFAULT), PHP_EOL;"
 ```
 
-## Apache en Ubuntu
+## Apache y DNS en Ubuntu
 
 La raiz del repositorio se ubicara en:
 
@@ -79,36 +95,63 @@ La raiz del repositorio se ubicara en:
 /var/www/html/TecnologiasWeb
 ```
 
-La configuracion incluida en `deploy/apache/tecnologiasweb.conf` publica `php/`, `usuarios/`, `css/` y `js/` mediante `Alias`. Las carpetas internas permanecen protegidas. De esta forma la aplicacion se abre en:
+La configuracion incluida en `deploy/apache/tecnologiasweb.conf` publica el proyecto mediante el dominio local y mantiene protegidos los controladores, modelos, vistas, scripts SQL y el archivo `.env`. La aplicacion se abre en:
 
 ```text
-http://192.168.102.130/TecnologiasWeb/php/
+http://tutorias.local/
 ```
 
 Instalar la configuracion despues de clonar el repositorio:
 
 ```bash
-sudo cp deploy/apache/tecnologiasweb.conf /etc/apache2/conf-available/tecnologiasweb.conf
-sudo a2enconf tecnologiasweb
+sudo cp deploy/apache/tecnologiasweb.conf /etc/apache2/sites-available/tutorias.local.conf
+sudo a2enmod rewrite
+sudo a2ensite tutorias.local
+sudo a2dissite 000-default
 sudo apache2ctl configtest
 sudo systemctl reload apache2
+```
+
+Para desplegar la copia actual, ajustar el `.env` del servidor e instalar Apache en un solo paso:
+
+```bash
+sudo bash deploy/install-ubuntu.sh
 ```
 
 Si el repositorio aun no existe en el servidor:
 
 ```bash
-sudo mkdir -p /var/www/html/TecnologiasWeb
-sudo chown -R "$USER":"$USER" /var/www/html/TecnologiasWeb
-git clone https://github.com/Mark21052017/TecnologiasWeb.git /var/www/html/TecnologiasWeb
+git clone https://github.com/Mark21052017/TecnologiasWeb.git "$HOME/TecnologiasWeb"
+cd "$HOME/TecnologiasWeb"
+cp .env.example .env
+sudo bash deploy/install-ubuntu.sh
 ```
 
-Configurar el archivo `/var/www/html/TecnologiasWeb/.env` antes de iniciar la aplicacion.
+Configurar `$HOME/TecnologiasWeb/.env` antes de ejecutar el instalador. La copia publicada en `/var/www/html/TecnologiasWeb` no se administra con Git.
+
+En Ubuntu la base local escucha en `3306`, por lo que el `.env` del servidor debe usar:
+
+```dotenv
+APP_ENV=production
+APP_URL=http://tutorias.local
+DB_HOST=127.0.0.1
+DB_PORT=3306
+```
+
+La zona de BIND debe apuntar a la IP actual del servidor. Para esta instalacion es `192.168.1.8`:
+
+```dns
+@       IN      A       192.168.1.8
+ns      IN      A       192.168.1.8
+www     IN      A       192.168.1.8
+```
 
 Despues de publicar cambios desde GitHub:
 
 ```bash
-cd /var/www/html/TecnologiasWeb
+cd "$HOME/TecnologiasWeb"
 git pull origin main
+sudo bash deploy/install-ubuntu.sh
 ```
 
 Los cambios de estructura de la base se aplican ejecutando el script SQL de migracion correspondiente. Git no modifica automaticamente MySQL.
@@ -118,7 +161,7 @@ Los cambios de estructura de la base se aplican ejecutando el script SQL de migr
 El archivo `.env` local usa el puerto `3307`, que corresponde al tunel SSH hacia MySQL de Ubuntu:
 
 ```powershell
-ssh -N -L 3307:127.0.0.1:3306 marco_r@192.168.102.130
+ssh -N -L 3307:127.0.0.1:3306 josue@192.168.1.8
 ```
 
 En otra terminal, desde la raiz del proyecto, iniciar PHP con el router:
