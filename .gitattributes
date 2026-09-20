@@ -1,0 +1,19 @@
+# Normaliza finales de linea. Los archivos que ejecuta/lee Linux (Docker/Ubuntu)
+# deben quedar SIEMPRE en LF, aunque se editen en Windows.
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.sql       text eol=lf
+*.conf      text eol=lf
+*.ini       text eol=lf
+*.php       text eol=lf
+Dockerfile  text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+
+# Binarios (por si acaso).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.svg text eol=lf
