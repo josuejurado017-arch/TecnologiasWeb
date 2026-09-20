@@ -50,11 +50,11 @@ final class TutorPortal
     public function removeSubject(int $userId, int $subjectId): void
     {
         $statement = Database::connection()->prepare(
-            "SELECT tm.id_tutor FROM tutor_materia tm INNER JOIN tutores t ON t.id_tutor = tm.id_tutor INNER JOIN tutorias tu ON tu.id_tutor = tm.id_tutor AND tu.id_materia = tm.id_materia WHERE t.id_usuario = :id_usuario AND tm.id_materia = :id_materia AND tu.estado IN ('pendiente', 'confirmada') LIMIT 1"
+            "SELECT g.id_grupo FROM grupos_tutoria g INNER JOIN tutores t ON t.id_tutor = g.id_tutor WHERE t.id_usuario = :id_usuario AND g.id_materia = :id_materia AND g.estado IN ('formacion', 'confirmado', 'en_curso') LIMIT 1"
         );
         $statement->execute(['id_usuario' => $userId, 'id_materia' => $subjectId]);
         if ($statement->fetch()) {
-            throw new RuntimeException('No puedes quitar una materia con tutorias pendientes o confirmadas.');
+            throw new RuntimeException('No puedes quitar una materia con grupos activos en una campana.');
         }
 
         $statement = Database::connection()->prepare(

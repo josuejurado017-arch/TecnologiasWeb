@@ -23,10 +23,6 @@ final class AuthController
                 return 'Las credenciales no son validas.';
             }
 
-            if ($user['estado'] === 'pendiente') {
-                $model->registerAccess((int) $user['id_usuario'], 'fallido');
-                return 'Tu cuenta esta pendiente de aprobacion administrativa.';
-            }
             if ($user['estado'] !== 'activo') {
                 $model->registerAccess((int) $user['id_usuario'], 'fallido');
                 return 'Tu cuenta esta inactiva. Contacta al administrador.';

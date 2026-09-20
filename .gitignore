@@ -8,3 +8,10 @@ node_modules/
 storage/logs/*
 !storage/logs/.gitkeep
 
+
+# Respaldos, dumps y temporales (no versionar datos ni secretos)
+respaldo*.sql
+*.bak
+*.dump
+*.log
+*.tmp

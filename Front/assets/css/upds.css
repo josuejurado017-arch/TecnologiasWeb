@@ -510,3 +510,20 @@ html[data-theme="light"] .secondary { background: #e7ebf4; color: var(--upds-ink
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
+
+/* Rediseno institucional: badges de estado, grid de checkboxes y lista de resultados. */
+.badge { display:inline-block; padding:.15rem .55rem; border-radius:999px; font-size:.75rem; font-weight:600; line-height:1.6; background:var(--surface-2,#eef1f6); color:var(--text-2,#3a4252); }
+.badge-activa, .badge-confirmado, .badge-inscrito, .badge-realizada, .badge-success { background:#e3f5ea; color:#1a7f45; }
+.badge-borrador, .badge-formacion, .badge-lista_espera, .badge-warning, .badge-programada { background:#fdf3e0; color:#96631a; }
+.badge-cerrada, .badge-cancelada, .badge-inactiva, .badge-danger { background:#fbe6e6; color:#a12727; }
+.badge-info, .badge-en_curso { background:#e5eefb; color:#1f5fa8; }
+.checkbox-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.6rem; border:0; padding:0; margin:1rem 0; }
+.checkbox-grid legend { font-weight:600; margin-bottom:.5rem; }
+.checkbox-item { display:flex; align-items:flex-start; gap:.55rem; padding:.7rem .8rem; border:1px solid var(--border,#dfe3ea); border-radius:.6rem; cursor:pointer; background:var(--surface,#fff); }
+.checkbox-item:hover { border-color:var(--brand,#c0392b); }
+.checkbox-item input { margin-top:.15rem; }
+.checkbox-item span { display:flex; flex-direction:column; }
+.checkbox-item small { color:var(--text-3,#8a93a3); }
+.result-list { list-style:none; padding:0; margin:.5rem 0 1rem; display:flex; flex-direction:column; gap:.5rem; }
+.result-list li { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; padding:.6rem .8rem; border:1px solid var(--border,#dfe3ea); border-radius:.6rem; }
+.result-list small { flex-basis:100%; color:var(--text-3,#8a93a3); }

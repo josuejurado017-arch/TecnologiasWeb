@@ -19,7 +19,7 @@ final class RegistroTutor
             }
 
             $userStatement = $pdo->prepare(
-                "INSERT INTO usuarios (id_rol, nombre, apellido, correo, usuario, contrasena_hash, telefono, estado) VALUES (:id_rol, :nombre, :apellido, :correo, :usuario, :contrasena_hash, :telefono, 'pendiente')"
+                "INSERT INTO usuarios (id_rol, nombre, apellido, correo, usuario, contrasena_hash, telefono, estado) VALUES (:id_rol, :nombre, :apellido, :correo, :usuario, :contrasena_hash, :telefono, 'activo')"
             );
             $userStatement->execute([
                 'id_rol' => $roleId,

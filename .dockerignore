@@ -9,3 +9,7 @@ node_modules
 Dockerfile
 compose.yaml
 .dockerignore
+
+# Respaldos y datos locales que no deben entrar a la imagen.
+respaldo*.sql
+*.bak

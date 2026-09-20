@@ -8,7 +8,7 @@ final class Notificacion
     {
         $limit = max(1, min($limit, 30));
         $statement = Database::connection()->prepare(
-            'SELECT id_notificacion, id_usuario, id_tutoria, tipo, titulo, mensaje AS text, url AS href, leida, fecha_creacion, CASE WHEN tipo = \'tutoria_cancelada\' THEN \'danger\' WHEN tipo IN (\'tutoria_confirmada\', \'tutoria_proxima\') THEN \'success\' WHEN tipo = \'evaluacion_pendiente\' THEN \'info\' ELSE \'warning\' END AS tone FROM notificaciones WHERE id_usuario = :id_usuario AND leida = 0 ORDER BY fecha_creacion DESC, id_notificacion DESC LIMIT ' . $limit
+            'SELECT id_notificacion, id_usuario, id_tutoria, tipo, titulo AS title, mensaje AS text, url AS href, leida, fecha_creacion, CASE WHEN tipo = \'tutoria_cancelada\' THEN \'danger\' WHEN tipo IN (\'tutoria_confirmada\', \'tutoria_proxima\') THEN \'success\' WHEN tipo = \'evaluacion_pendiente\' THEN \'info\' ELSE \'warning\' END AS tone FROM notificaciones WHERE id_usuario = :id_usuario AND leida = 0 ORDER BY fecha_creacion DESC, id_notificacion DESC LIMIT ' . $limit
         );
         $statement->execute(['id_usuario' => $userId]);
 
@@ -41,57 +41,83 @@ final class Notificacion
         ]);
     }
 
-    public function forTutoriaEvent(PDO $pdo, int $tutoriaId, string $type): void
+    /** Notifica al estudiante que fue asignado a un grupo (modelo institucional). */
+    public function notifyAssignment(PDO $pdo, int $grupoId, int $studentUserId, string $materia, string $detalle): void
+    {
+        $this->create(
+            $pdo,
+            $studentUserId,
+            null,
+            'asignacion_grupo',
+            'Nueva asignacion de tutoria',
+            'Fuiste asignado a un grupo de ' . $materia . '. ' . $detalle,
+            '/mis-tutorias/',
+            'asignacion_grupo:' . $grupoId . ':' . $studentUserId
+        );
+    }
+
+    /** Notifica a todos los inscritos activos que su grupo quedo confirmado. */
+    public function notifyGroupConfirmed(PDO $pdo, int $grupoId, string $materia): void
     {
         $statement = $pdo->prepare(
-            'SELECT t.id_tutoria, t.fecha, t.hora_inicio, t.estado, e.id_usuario AS estudiante_usuario, tr.id_usuario AS tutor_usuario, m.nombre_materia FROM tutorias t INNER JOIN estudiantes e ON e.id_estudiante = t.id_estudiante INNER JOIN tutores tr ON tr.id_tutor = t.id_tutor INNER JOIN materias m ON m.id_materia = t.id_materia WHERE t.id_tutoria = :id_tutoria LIMIT 1'
+            "SELECT e.id_usuario FROM inscripciones i
+             INNER JOIN estudiantes e ON e.id_estudiante = i.id_estudiante
+             WHERE i.id_grupo = :id_grupo AND i.estado = 'inscrito'"
         );
-        $statement->execute(['id_tutoria' => $tutoriaId]);
-        $tutoria = $statement->fetch();
-        if (!$tutoria) {
-            return;
-        }
-
-        $recipients = match ($type) {
-            'tutoria_confirmada', 'evaluacion_pendiente' => [(int) $tutoria['estudiante_usuario']],
-            default => [(int) $tutoria['estudiante_usuario'], (int) $tutoria['tutor_usuario']],
-        };
-        [$title, $message] = match ($type) {
-            'tutoria_creada' => ['Nueva solicitud de tutoria', 'Se registro una solicitud para ' . $tutoria['nombre_materia'] . '.'],
-            'tutoria_confirmada' => ['Tutoria confirmada', 'Tu tutoria de ' . $tutoria['nombre_materia'] . ' fue confirmada.'],
-            'tutoria_cancelada' => ['Tutoria cancelada', 'La tutoria de ' . $tutoria['nombre_materia'] . ' fue cancelada.'],
-            'tutoria_reprogramada' => ['Tutoria reprogramada', 'La tutoria de ' . $tutoria['nombre_materia'] . ' cambio de fecha u horario.'],
-            'evaluacion_pendiente' => ['Evaluacion pendiente', 'Puedes evaluar tu tutoria de ' . $tutoria['nombre_materia'] . '.'],
-            default => ['Tutoria actualizada', 'La tutoria de ' . $tutoria['nombre_materia'] . ' fue actualizada.'],
-        };
-
-        foreach (array_unique($recipients) as $recipient) {
-            $this->create($pdo, $recipient, $tutoriaId, $type, $title, $message, '/tutorias/', $type . ':' . $tutoriaId . ':' . $recipient);
+        $statement->execute(['id_grupo' => $grupoId]);
+        foreach ($statement->fetchAll() as $row) {
+            $userId = (int) $row['id_usuario'];
+            $this->create(
+                $pdo,
+                $userId,
+                null,
+                'grupo_confirmado',
+                'Grupo de tutoria confirmado',
+                'Tu grupo de ' . $materia . ' alcanzo el cupo minimo y quedo confirmado.',
+                '/mis-tutorias/',
+                'grupo_confirmado:' . $grupoId . ':' . $userId
+            );
         }
     }
 
-    public function createUpcomingForUser(int $userId): void
+    /** Avisa a los inscritos de un grupo que pueden evaluar (tras una sesion realizada). */
+    public function notifyEvaluationPending(PDO $pdo, int $grupoId, string $materia): void
     {
-        $pdo = Database::connection();
         $statement = $pdo->prepare(
-            'SELECT t.id_tutoria, t.fecha, t.hora_inicio, m.nombre_materia FROM tutorias t INNER JOIN estudiantes e ON e.id_estudiante = t.id_estudiante INNER JOIN tutores tr ON tr.id_tutor = t.id_tutor INNER JOIN materias m ON m.id_materia = t.id_materia WHERE (e.id_usuario = :student_user OR tr.id_usuario = :tutor_user) AND t.estado IN (\'pendiente\', \'confirmada\') AND TIMESTAMP(t.fecha, t.hora_inicio) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 48 HOUR)'
+            "SELECT e.id_usuario FROM inscripciones i
+             INNER JOIN estudiantes e ON e.id_estudiante = i.id_estudiante
+             WHERE i.id_grupo = :id_grupo AND i.estado = 'inscrito'
+               AND NOT EXISTS (SELECT 1 FROM evaluaciones_grupo eg WHERE eg.id_inscripcion = i.id_inscripcion)"
         );
-        $statement->execute(['student_user' => $userId, 'tutor_user' => $userId]);
-        foreach ($statement->fetchAll() as $tutoria) {
-            $this->create($pdo, $userId, (int) $tutoria['id_tutoria'], 'tutoria_proxima', 'Tutoria proxima', 'Tienes una tutoria de ' . $tutoria['nombre_materia'] . ' en las proximas 48 horas.', '/tutorias/', 'tutoria_proxima:' . $tutoria['id_tutoria'] . ':' . $userId);
+        $statement->execute(['id_grupo' => $grupoId]);
+        foreach ($statement->fetchAll() as $row) {
+            $userId = (int) $row['id_usuario'];
+            $this->create(
+                $pdo,
+                $userId,
+                null,
+                'evaluacion_pendiente',
+                'Evaluacion pendiente',
+                'Ya puedes evaluar tu tutoria de ' . $materia . '.',
+                '/mis-evaluaciones/',
+                'evaluacion_pendiente_grupo:' . $grupoId . ':' . $userId
+            );
         }
     }
 
-    public function createEvaluationPendingForUser(int $userId): void
+    /** Notifica a un estudiante que su grupo fue cancelado. */
+    public function notifyGroupCancelled(PDO $pdo, int $grupoId, int $studentUserId, string $materia): void
     {
-        $pdo = Database::connection();
-        $statement = $pdo->prepare(
-            'SELECT t.id_tutoria, m.nombre_materia FROM tutorias t INNER JOIN estudiantes e ON e.id_estudiante = t.id_estudiante INNER JOIN materias m ON m.id_materia = t.id_materia LEFT JOIN evaluaciones_tutoria ev ON ev.id_tutoria = t.id_tutoria WHERE e.id_usuario = :id_usuario AND t.estado = \'realizada\' AND ev.id_evaluacion IS NULL'
+        $this->create(
+            $pdo,
+            $studentUserId,
+            null,
+            'grupo_cancelado',
+            'Grupo de tutoria cancelado',
+            'Tu grupo de ' . $materia . ' fue cancelado. Vuelve a solicitar apoyo para reasignarte.',
+            '/mis-tutorias/',
+            'grupo_cancelado:' . $grupoId . ':' . $studentUserId
         );
-        $statement->execute(['id_usuario' => $userId]);
-        foreach ($statement->fetchAll() as $tutoria) {
-            $this->create($pdo, $userId, (int) $tutoria['id_tutoria'], 'evaluacion_pendiente', 'Evaluacion pendiente', 'Puedes evaluar tu tutoria de ' . $tutoria['nombre_materia'] . '.', '/evaluaciones/', 'evaluacion_pendiente:' . $tutoria['id_tutoria'] . ':' . $userId);
-        }
     }
 
     public function markRead(int $id, int $userId): bool

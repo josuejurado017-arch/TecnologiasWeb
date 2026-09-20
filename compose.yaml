@@ -44,6 +44,13 @@ services:
       - ./db/006_tutor_permissions.sql:/docker-entrypoint-initdb.d/006_tutor_permissions.sql:ro
       - ./db/008_tutorias_institucionales.sql:/docker-entrypoint-initdb.d/008_tutorias_institucionales.sql:ro
       - ./db/009_tutoria_slots_especiales.sql:/docker-entrypoint-initdb.d/009_tutoria_slots_especiales.sql:ro
+      - ./db/010_rediseno_institucional.sql:/docker-entrypoint-initdb.d/010_rediseno_institucional.sql:ro
+      - ./db/011_grupos_inscripciones.sql:/docker-entrypoint-initdb.d/011_grupos_inscripciones.sql:ro
+      - ./db/012_asistencia_sesion.sql:/docker-entrypoint-initdb.d/012_asistencia_sesion.sql:ro
+      - ./db/013_evaluacion_grupo.sql:/docker-entrypoint-initdb.d/013_evaluacion_grupo.sql:ro
+      - ./db/014_historial_grupo.sql:/docker-entrypoint-initdb.d/014_historial_grupo.sql:ro
+      - ./db/015_poda_modelo_viejo.sql:/docker-entrypoint-initdb.d/015_poda_modelo_viejo.sql:ro
+      - ./db/016_drop_modelo_individual.sql:/docker-entrypoint-initdb.d/016_drop_modelo_individual.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s

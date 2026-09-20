@@ -32,6 +32,32 @@ function validation_text(string $value, string $label, int $maxLength): ?string
     return null;
 }
 
+function validation_label(string $value, string $label, int $maxLength = 120, int $minLength = 3): ?string
+{
+    if ($value === '') {
+        return "El {$label} es obligatorio.";
+    }
+    if (mb_strlen($value) < $minLength) {
+        return "El {$label} debe tener al menos {$minLength} caracteres.";
+    }
+    if (mb_strlen($value) > $maxLength) {
+        return "El {$label} no puede superar {$maxLength} caracteres.";
+    }
+    if (preg_match('/[\x00-\x1F\x7F]/', $value)) {
+        return "El {$label} contiene caracteres no validos.";
+    }
+    // Debe contener al menos una letra: evita nombres formados solo por numeros o simbolos.
+    if (!preg_match('/\p{L}/u', $value)) {
+        return "El {$label} debe contener al menos una letra.";
+    }
+    // Solo letras, numeros, espacios y puntuacion basica de nombres academicos.
+    if (!preg_match("/^[\\p{L}\\p{N}][\\p{L}\\p{N} .,'()\\/&+-]*$/u", $value)) {
+        return "El {$label} solo puede contener letras, numeros, espacios y . , ' ( ) / & + -";
+    }
+
+    return null;
+}
+
 function validation_username(string $value): ?string
 {
     if (!preg_match('/^[A-Za-z0-9._-]{4,50}$/', $value)) {

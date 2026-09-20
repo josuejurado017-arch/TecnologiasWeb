@@ -77,19 +77,12 @@ final class DisponibilidadTutor
     {
         $sql = <<<'SQL'
             SELECT 1
-            FROM tutorias t
-            WHERE t.id_tutor = :id_tutor
-              AND t.estado IN ('pendiente', 'confirmada')
-              AND CASE WEEKDAY(t.fecha)
-                    WHEN 0 THEN 'Lunes'
-                    WHEN 1 THEN 'Martes'
-                    WHEN 2 THEN 'Miercoles'
-                    WHEN 3 THEN 'Jueves'
-                    WHEN 4 THEN 'Viernes'
-                    WHEN 5 THEN 'Sabado'
-                  END = :dia_semana
-              AND t.hora_inicio < :hora_fin
-              AND t.hora_fin > :hora_inicio
+            FROM grupos_tutoria g
+            WHERE g.id_tutor = :id_tutor
+              AND g.estado IN ('formacion', 'confirmado', 'en_curso')
+              AND g.dia_semana = :dia_semana
+              AND g.hora_inicio < :hora_fin
+              AND g.hora_fin > :hora_inicio
             LIMIT 1
         SQL;
         $statement = Database::connection()->prepare($sql);
