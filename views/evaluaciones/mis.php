@@ -4,20 +4,20 @@
     <div class="page-heading">
         <div>
             <h1>Evaluaciones</h1>
-            <p>Evalua a tus tutores cuando tu grupo ya haya tenido al menos una sesion.</p>
+            <p>Evalúa a tus tutores cuando tu grupo ya haya tenido al menos una sesión.</p>
         </div>
     </div>
 
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>
 
     <?php if (!$periodo): ?>
-        <p class="alert" role="alert">No hay una campana de tutorias activa.</p>
+        <p class="alert" role="alert">No hay un periodo de tutoría activo.</p>
     <?php else: ?>
         <section class="card">
             <h2>Pendientes de evaluar</h2>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>Materia</th><th>Tutor</th><th>Horario</th><th>Accion</th></tr></thead>
+                    <thead><tr><th>Materia</th><th>Tutor</th><th>Horario</th><th>Acción</th></tr></thead>
                     <tbody>
                         <?php foreach ($pendientes as $p): ?>
                             <tr>
@@ -50,7 +50,7 @@
                                 <td><?= (int) $r['utilidad'] ?></td>
                             </tr>
                         <?php endforeach; ?>
-                        <?php if (!$realizadas): ?><tr><td colspan="7" class="empty-state">Aun no has evaluado ninguna tutoria.</td></tr><?php endif; ?>
+                        <?php if (!$realizadas): ?><tr><td colspan="7" class="empty-state">Aún no has evaluado ninguna tutoría.</td></tr><?php endif; ?>
                     </tbody>
                 </table>
             </div>

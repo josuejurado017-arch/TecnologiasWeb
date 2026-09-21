@@ -20,12 +20,12 @@ $role = $user['nombre_rol'] ?? '';
             <div class="sidebar-brand">
                 <img class="brand-logo" src="<?= e(app_url('Front/assets/img/upds-logo.svg')) ?>" alt="UPDS">
                 <div>
-                    <strong>Portal de tutorias</strong>
-                    <span>Apoyo academico</span>
+                    <strong>Portal de tutorías</strong>
+                    <span>Apoyo académico</span>
                 </div>
             </div>
 
-            <nav class="sidebar-nav" aria-label="Navegacion principal">
+            <nav class="sidebar-nav" aria-label="Navegación principal">
                 <span class="nav-label">Workspace</span>
                 <a class="nav-link <?= $activePage === 'dashboard' ? 'is-active' : '' ?>" href="<?= e(app_url('dashboard.php')) ?>">
                     <span class="nav-icon">01</span>
@@ -33,29 +33,21 @@ $role = $user['nombre_rol'] ?? '';
                 </a>
 
                 <?php if (($user['nombre_rol'] ?? '') === 'administrador'): ?>
-                    <span class="nav-label">Administracion</span>
+                    <span class="nav-label">Administración</span>
                     <a class="nav-link <?= $activePage === 'usuarios' ? 'is-active' : '' ?>" href="<?= e(app_url('usuarios/')) ?>">
                         <span class="nav-icon">US</span>
                         <span>Cuentas de acceso</span>
                     </a>
-                    <a class="nav-link <?= $activePage === 'roles' ? 'is-active' : '' ?>" href="<?= e(app_url('roles/')) ?>">
-                        <span class="nav-icon">RO</span>
-                        <span>Roles</span>
-                    </a>
-                    <a class="nav-link <?= $activePage === 'permisos' ? 'is-active' : '' ?>" href="<?= e(app_url('permisos/')) ?>">
-                        <span class="nav-icon">PE</span>
-                        <span>Permisos</span>
-                    </a>
-                    <span class="nav-label">Campanas</span>
+                    <span class="nav-label">Períodos</span>
                     <a class="nav-link <?= $activePage === 'periodos' ? 'is-active' : '' ?>" href="<?= e(app_url('periodos/')) ?>">
                         <span class="nav-icon">CP</span>
-                        <span>Campanas de tutoria</span>
+                        <span>Períodos de tutoría</span>
                     </a>
                     <a class="nav-link <?= $activePage === 'aulas' ? 'is-active' : '' ?>" href="<?= e(app_url('aulas/')) ?>">
                         <span class="nav-icon">AU</span>
                         <span>Aulas</span>
                     </a>
-                    <span class="nav-label">Catalogo academico</span>
+                    <span class="nav-label">Catálogo académico</span>
                     <a class="nav-link <?= $activePage === 'carreras' ? 'is-active' : '' ?>" href="<?= e(app_url('carreras/')) ?>">
                         <span class="nav-icon">CA</span>
                         <span>Carreras</span>
@@ -64,7 +56,7 @@ $role = $user['nombre_rol'] ?? '';
                         <span class="nav-icon">MA</span>
                         <span>Materias</span>
                     </a>
-                    <span class="nav-label">Perfiles academicos</span>
+                    <span class="nav-label">Perfiles académicos</span>
                     <a class="nav-link <?= $activePage === 'estudiantes' ? 'is-active' : '' ?>" href="<?= e(app_url('estudiantes/')) ?>">
                         <span class="nav-icon">ES</span>
                         <span>Estudiantes</span>
@@ -73,16 +65,16 @@ $role = $user['nombre_rol'] ?? '';
                         <span class="nav-icon">TU</span>
                         <span>Tutores</span>
                     </a>
-                    <span class="nav-label">Operacion</span>
+                    <span class="nav-label">Operación</span>
                     <a class="nav-link <?= $activePage === 'disponibilidad' ? 'is-active' : '' ?>" href="<?= e(app_url('disponibilidad/')) ?>">
                         <span class="nav-icon">DI</span>
                         <span>Disponibilidad</span>
                     </a>
                     <a class="nav-link <?= $activePage === 'grupos' ? 'is-active' : '' ?>" href="<?= e(app_url('grupos/')) ?>">
                         <span class="nav-icon">GR</span>
-                        <span>Grupos de tutoria</span>
+                        <span>Grupos de tutoría</span>
                     </a>
-                    <span class="nav-label">Analitica</span>
+                    <span class="nav-label">Analítica</span>
                     <a class="nav-link <?= $activePage === 'reportes-campania' ? 'is-active' : '' ?>" href="<?= e(app_url('reportes/campania.php')) ?>">
                         <span class="nav-icon">RC</span>
                         <span>Reportes</span>
@@ -102,7 +94,7 @@ $role = $user['nombre_rol'] ?? '';
                         <span class="nav-icon">MA</span>
                         <span>Mis materias</span>
                     </a><?php endif; ?>
-                    <span class="nav-label">Operacion</span>
+                    <span class="nav-label">Operación</span>
                 <?php endif; ?>
                 <?php if ($role === 'tutor' && Auth::can('disponibilidad')): ?>
                     <a class="nav-link <?= $activePage === 'disponibilidad' ? 'is-active' : '' ?>" href="<?= e(app_url('disponibilidad/')) ?>">
@@ -124,7 +116,7 @@ $role = $user['nombre_rol'] ?? '';
                     </a>
                     <a class="nav-link <?= $activePage === 'mis-tutorias' ? 'is-active' : '' ?>" href="<?= e(app_url('mis-tutorias/')) ?>">
                         <span class="nav-icon">TI</span>
-                        <span>Mis tutorias</span>
+                        <span>Mis tutorías</span>
                     </a>
                     <?php if (Auth::can('evaluaciones')): ?><a class="nav-link <?= $activePage === 'mis-evaluaciones' ? 'is-active' : '' ?>" href="<?= e(app_url('mis-evaluaciones/')) ?>">
                         <span class="nav-icon">EV</span>
@@ -143,7 +135,7 @@ $role = $user['nombre_rol'] ?? '';
                 </div>
                 <a class="nav-link logout-link" href="<?= e(app_url('logout.php')) ?>">
                     <span class="nav-icon">-&gt;</span>
-                    <span>Cerrar sesion</span>
+                    <span>Cerrar sesión</span>
                 </a>
             </div>
         </aside>
@@ -155,7 +147,7 @@ $role = $user['nombre_rol'] ?? '';
                     <span></span><span></span><span></span>
                 </button>
                 <div class="topbar-context">
-                    <span class="eyebrow">Sistema de apoyo academico</span>
+                    <span class="eyebrow">Sistema de apoyo académico</span>
                     <strong><?= e($title) ?></strong>
                 </div>
                 <div class="topbar-actions" aria-label="Acciones del portal">
@@ -216,9 +208,9 @@ $role = $user['nombre_rol'] ?? '';
                             <a role="menuitem" href="<?= e(app_url('mi-perfil-tutor/')) ?>">Mi perfil</a>
                             <a role="menuitem" href="<?= e(app_url('mis-materias/')) ?>">Mis materias</a>
                         <?php else: ?>
-                            <a role="menuitem" href="<?= e(app_url('mis-tutorias/')) ?>">Mis tutorias</a>
+                            <a role="menuitem" href="<?= e(app_url('mis-tutorias/')) ?>">Mis tutorías</a>
                         <?php endif; ?>
-                        <a class="user-panel-logout" role="menuitem" href="<?= e(app_url('logout.php')) ?>">Cerrar sesion</a>
+                        <a class="user-panel-logout" role="menuitem" href="<?= e(app_url('logout.php')) ?>">Cerrar sesión</a>
                     </div>
                 </div>
             </header>

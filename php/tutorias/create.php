@@ -21,11 +21,11 @@ if ($periodo && $studentId) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
-        $errors[] = 'La sesion del formulario no es valida. Recargue la pagina.';
+        $errors[] = 'La sesión del formulario no es válida. Recargue la página.';
     } elseif (!$periodo) {
-        $errors[] = 'No hay una campana de tutorias activa en este momento.';
+        $errors[] = 'No hay un periodo de tutoría activo en este momento.';
     } elseif (!$studentId) {
-        $errors[] = 'Tu perfil de estudiante no esta completo.';
+        $errors[] = 'Tu perfil de estudiante no está completo.';
     } else {
         $selected = isset($_POST['materias']) && is_array($_POST['materias']) ? $_POST['materias'] : [];
         $selected = array_slice(array_unique(array_map('intval', $selected)), 0, 20);

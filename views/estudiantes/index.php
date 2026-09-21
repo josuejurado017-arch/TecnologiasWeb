@@ -6,7 +6,6 @@
             <h1>Estudiantes</h1>
             <p>Perfiles academicos vinculados a usuarios con rol estudiante.</p>
         </div>
-        <a class="button" href="<?= e(app_url('estudiantes/create.php')) ?>">Nuevo estudiante</a>
     </div>
 
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>

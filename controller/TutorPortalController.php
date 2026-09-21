@@ -30,7 +30,7 @@ final class TutorPortalController
     {
         $subjectId = filter_var($input['id_materia'] ?? null, FILTER_VALIDATE_INT);
         if ($subjectId === false || $subjectId < 1) {
-            return 'Seleccione una materia valida.';
+            return 'Seleccione una materia válida.';
         }
 
         try {
@@ -49,7 +49,7 @@ final class TutorPortalController
     {
         $subjectId = filter_var($input['id_materia'] ?? null, FILTER_VALIDATE_INT);
         if ($subjectId === false || $subjectId < 1) {
-            return 'Materia no valida.';
+            return 'Materia no válida.';
         }
 
         try {
@@ -73,7 +73,7 @@ final class TutorPortalController
             $errors[] = $specialtyError;
         }
         if (strlen($data['biografia']) > 2000 || preg_match('/[\x00-\x1F\x7F]/', $data['biografia'])) {
-            $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no validos.';
+            $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no válidos.';
         }
         if (!$errors) {
             $this->model->updateProfile($userId, $data['especialidad'], $data['biografia']);

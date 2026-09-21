@@ -61,17 +61,27 @@ final class Auth
         }
     }
 
+    /**
+     * Capacidades fijas por rol (modelo institucional: 3 roles, sin matriz dinámica).
+     * El administrador tiene acceso total. Reemplaza a la antigua tabla permisos_rol.
+     */
+    private const ROLE_MODULES = [
+        'tutor' => ['dashboard', 'disponibilidad', 'evaluaciones', 'tutores', 'tutorias', 'asignaciones'],
+        'estudiante' => ['dashboard', 'disponibilidad', 'evaluaciones', 'materias', 'tutores', 'tutorias'],
+    ];
+
     public static function can(string $module): bool
     {
         if (!self::check()) {
             return false;
         }
 
-        if ((self::user()['nombre_rol'] ?? '') === 'administrador') {
+        $role = self::user()['nombre_rol'] ?? '';
+        if ($role === 'administrador') {
             return true;
         }
 
-        return (new Permiso())->can((int) self::user()['id_usuario'], $module);
+        return in_array($module, self::ROLE_MODULES[$role] ?? [], true);
     }
 
     public static function requireModule(string $module): void

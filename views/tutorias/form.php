@@ -10,17 +10,17 @@ $resultLabels = [
 ?>
 <main class="container narrow-wide">
     <section class="card">
-        <h1>Solicitar apoyo academico</h1>
-        <p class="form-intro">Selecciona las materias en las que necesitas apoyo. El sistema te asignara automaticamente un grupo con tutor, aula y horario.</p>
+        <h1>Solicitar apoyo académico</h1>
+        <p class="form-intro">Selecciona las materias en las que necesitas apoyo. El sistema te asignará automáticamente un grupo con tutor, aula y horario.</p>
 
         <?php if (!empty($errors)): ?>
             <div class="alert" role="alert"><ul><?php foreach ($errors as $formError): ?><li><?= e($formError) ?></li><?php endforeach; ?></ul></div>
         <?php endif; ?>
 
         <?php if (!$periodo): ?>
-            <p class="alert" role="alert">No hay una campana de tutorias activa. Vuelve cuando el administrador active una campana.</p>
+            <p class="alert" role="alert">No hay un período de tutoría activo. Vuelve cuando el administrador active uno.</p>
         <?php else: ?>
-            <p class="panel-note">Campana activa: <strong><?= e($periodo['nombre']) ?></strong> (<?= e($periodo['fecha_inicio']) ?> al <?= e($periodo['fecha_fin']) ?>)</p>
+            <p class="panel-note">Período activo: <strong><?= e($periodo['nombre']) ?></strong> (<?= e($periodo['fecha_inicio']) ?> al <?= e($periodo['fecha_fin']) ?>)</p>
         <?php endif; ?>
 
         <?php if ($results !== null): ?>
@@ -53,7 +53,7 @@ $resultLabels = [
                     <?php endforeach; ?>
                 </fieldset>
                 <button type="submit">Solicitar apoyo</button>
-                <a class="button secondary" href="<?= e(app_url('mis-tutorias/')) ?>">Mis tutorias</a>
+                <a class="button secondary" href="<?= e(app_url('mis-tutorias/')) ?>">Mis tutorías</a>
             </form>
         <?php elseif ($periodo && !$subjects && $results === null): ?>
             <p class="empty-state">No hay materias disponibles para solicitar en este momento (o ya solicitaste todas las que tienen oferta).</p>

@@ -2,14 +2,14 @@
 
 require dirname(__DIR__, 2) . '/includes/bootstrap.php';
 Auth::requireRole('administrador');
-$title = 'Campanas de tutoria';
+$title = 'Períodos de tutoría';
 $activePage = 'periodos';
 
 $messages = [
-    'created' => 'Campana creada correctamente.',
-    'updated' => 'Campana actualizada correctamente.',
-    'deleted' => 'Campana eliminada correctamente.',
-    'activated' => 'Campana activada. Las demas quedaron en borrador.',
+    'created' => 'Período creado correctamente.',
+    'updated' => 'Período actualizado correctamente.',
+    'deleted' => 'Período eliminado correctamente.',
+    'activated' => 'Período activado. Los demás quedaron en borrador.',
 ];
 $messageCode = isset($_GET['message']) && is_string($_GET['message']) ? $_GET['message'] : '';
 $message = $messages[$messageCode] ?? null;

@@ -107,7 +107,7 @@ final class AulasController
             if ($data['enlace'] === null) {
                 $errors[] = 'Una sala virtual requiere un enlace.';
             } elseif (!filter_var($data['enlace'], FILTER_VALIDATE_URL)) {
-                $errors[] = 'El enlace de la sala virtual no es una URL valida.';
+                $errors[] = 'El enlace de la sala virtual no es una URL válida.';
             }
         }
 

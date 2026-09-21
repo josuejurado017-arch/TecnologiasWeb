@@ -32,6 +32,24 @@ function validation_text(string $value, string $label, int $maxLength): ?string
     return null;
 }
 
+/** Normaliza nombres y títulos, conservando partículas internas en minúscula. */
+function normalize_name(string $value): string
+{
+    $value = preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', $value) ?? $value;
+    $value = preg_replace('/\s+/u', ' ', trim($value)) ?? trim($value);
+    $words = explode(' ', mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'));
+    $particles = ['de', 'del', 'la', 'las', 'los', 'y'];
+
+    foreach ($words as $index => $word) {
+        $lower = mb_strtolower($word, 'UTF-8');
+        if ($index > 0 && in_array($lower, $particles, true)) {
+            $words[$index] = $lower;
+        }
+    }
+
+    return implode(' ', $words);
+}
+
 function validation_label(string $value, string $label, int $maxLength = 120, int $minLength = 3): ?string
 {
     if ($value === '') {
@@ -53,6 +71,23 @@ function validation_label(string $value, string $label, int $maxLength = 120, in
     // Solo letras, numeros, espacios y puntuacion basica de nombres academicos.
     if (!preg_match("/^[\\p{L}\\p{N}][\\p{L}\\p{N} .,'()\\/&+-]*$/u", $value)) {
         return "El {$label} solo puede contener letras, numeros, espacios y . , ' ( ) / & + -";
+    }
+
+    return null;
+}
+
+/**
+ * Carnet de Identidad boliviano: numero obligatorio (4-10 digitos) con
+ * complemento/extension OPCIONAL (p. ej. "1234567", "1234567 LP", "12345678-1K").
+ */
+function validation_ci(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 'El carnet de identidad es obligatorio.';
+    }
+    if (!preg_match('/^[0-9]{4,10}(?:[ -]?[0-9A-Za-z]{1,3}){0,2}$/', $value)) {
+        return 'El carnet de identidad no es valido (numero, con complemento o extension opcional).';
     }
 
     return null;

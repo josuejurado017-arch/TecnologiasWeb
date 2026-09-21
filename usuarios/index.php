@@ -9,7 +9,7 @@ $messages = [
     'created' => 'Usuario creado correctamente.',
     'updated' => 'Usuario actualizado correctamente.',
     'deactivated' => 'Usuario desactivado correctamente.',
-    'activated' => 'Cuenta aprobada y activada correctamente.',
+    'activated' => 'Cuenta activada correctamente.',
 ];
 $message = $messages[$_GET['message'] ?? ''] ?? null;
 $error = isset($_GET['error']) && is_string($_GET['error']) ? $_GET['error'] : null;

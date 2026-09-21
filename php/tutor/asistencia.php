@@ -14,7 +14,7 @@ $data = $sesionId ? $controller->form($sesionId, $tutorUserId) : null;
 
 if (!$data) {
     http_response_code(404);
-    exit('Sesion no encontrada o sin permiso.');
+    exit('Sesión no encontrada o sin permiso.');
 }
 
 $errors = [];
@@ -22,7 +22,7 @@ $saved = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
-        $errors[] = 'La sesion del formulario no es valida. Recargue la pagina.';
+        $errors[] = 'La sesión del formulario no es válida. Recargue la página.';
     } else {
         $error = $controller->save((int) $sesionId, $tutorUserId, $_POST);
         if ($error !== null) {

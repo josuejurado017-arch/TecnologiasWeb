@@ -4,16 +4,16 @@
     <div class="page-heading">
         <div>
             <h1>Mis grupos</h1>
-            <p>Grupos de tutoria que impartes en la campana activa.</p>
+            <p>Grupos de tutoría que impartes en el período activo.</p>
         </div>
     </div>
 
     <?php if (!$periodo): ?>
-        <p class="alert" role="alert">No hay una campana de tutorias activa.</p>
+        <p class="alert" role="alert">No hay un período de tutoría activo.</p>
     <?php elseif (!$grupos): ?>
-        <p class="empty-state">Aun no tienes grupos asignados. Se crearan cuando los estudiantes soliciten tus materias.</p>
+        <p class="empty-state">Aún no tienes grupos asignados. Se crearán cuando los estudiantes soliciten tus materias.</p>
     <?php else: ?>
-        <p class="panel-note">Campana: <strong><?= e($periodo['nombre']) ?></strong></p>
+        <p class="panel-note">Período: <strong><?= e($periodo['nombre']) ?></strong></p>
         <?php foreach ($grupos as $grupo): ?>
             <section class="card" style="margin-bottom:1rem;">
                 <div class="section-heading">

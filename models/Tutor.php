@@ -101,7 +101,7 @@ final class Tutor
             INNER JOIN roles r ON r.id_rol = u.id_rol
             WHERE u.id_usuario = :id_usuario
               AND r.nombre_rol = 'tutor'
-              AND u.estado IN ('activo', 'pendiente')
+              AND (u.estado = 'activo' OR u.id_usuario = :current_user)
               AND (NOT EXISTS (SELECT 1 FROM tutores t WHERE t.id_usuario = u.id_usuario) OR u.id_usuario = :current_user)
             LIMIT 1
         SQL;

@@ -6,7 +6,6 @@
             <h1>Tutores</h1>
             <p>Perfiles de los usuarios que brindan apoyo academico.</p>
         </div>
-        <a class="button" href="<?= e(app_url('tutores/create.php')) ?>">Nuevo tutor</a>
     </div>
 
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>

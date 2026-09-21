@@ -87,7 +87,7 @@ final class TutoresController
         $userId = filter_var($data['id_usuario'], FILTER_VALIDATE_INT);
 
         if ($userId === false || $userId < 1) {
-            $errors[] = 'Seleccione un usuario tutor valido.';
+            $errors[] = 'Seleccione un usuario tutor válido.';
         } elseif (!$this->model->userIsEligible((int) $userId, $currentUserId)) {
             $errors[] = 'El usuario seleccionado no es elegible para este perfil.';
         }
@@ -95,7 +95,7 @@ final class TutoresController
             $errors[] = 'La especialidad no puede superar 150 caracteres.';
         }
         if (strlen($data['biografia']) > 2000 || preg_match('/[\x00-\x1F\x7F]/', $data['biografia'])) {
-            $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no validos.';
+            $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no válidos.';
         }
 
         return $errors;

@@ -20,7 +20,7 @@ final class AuthController
                 if ($user) {
                     $model->registerAccess((int) $user['id_usuario'], 'fallido');
                 }
-                return 'Las credenciales no son validas.';
+                return 'Las credenciales no son válidas.';
             }
 
             if ($user['estado'] !== 'activo') {

@@ -7,7 +7,7 @@ if (Auth::check()) {
     exit;
 }
 
-$title = 'Postular como tutor';
+$title = 'Crear cuenta de tutor';
 $data = [
     'nombre' => '',
     'apellido' => '',
@@ -24,7 +24,7 @@ $controller = new RegistroTutorController();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
-        $errors[] = 'La sesion del formulario no es valida. Recargue la pagina.';
+        $errors[] = 'La sesión del formulario no es válida. Recargue la página.';
     } else {
         [$data, $errors] = $controller->register($_POST);
         if (!$errors) {

@@ -3,19 +3,19 @@
 <main class="container">
     <div class="page-heading">
         <div>
-            <h1>Mis tutorias</h1>
-            <p>Grupos de apoyo a los que fuiste asignado en la campana activa.</p>
+            <h1>Mis tutorías</h1>
+            <p>Grupos de apoyo a los que fuiste asignado en el período activo.</p>
         </div>
         <a class="button" href="<?= e(app_url('tutorias/create.php')) ?>">Solicitar apoyo</a>
     </div>
 
     <?php if (!$periodo): ?>
-        <p class="alert" role="alert">No hay una campana de tutorias activa.</p>
+        <p class="alert" role="alert">No hay un período de tutoría activo.</p>
     <?php else: ?>
-        <p class="panel-note">Campana: <strong><?= e($periodo['nombre']) ?></strong></p>
+        <p class="panel-note">Período: <strong><?= e($periodo['nombre']) ?></strong></p>
         <div class="table-wrapper card">
             <table>
-                <thead><tr><th>Materia</th><th>Tutor</th><th>Dia</th><th>Horario</th><th>Modalidad</th><th>Aula / Enlace</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Materia</th><th>Tutor</th><th>Día</th><th>Horario</th><th>Modalidad</th><th>Aula / Enlace</th><th>Estado</th></tr></thead>
                 <tbody>
                     <?php foreach ($inscripciones as $i): ?>
                         <tr>
@@ -38,7 +38,7 @@
                         </tr>
                     <?php endforeach; ?>
                     <?php if (!$inscripciones): ?>
-                        <tr><td colspan="7" class="empty-state">Aun no tienes tutorias. Usa "Solicitar apoyo" para empezar.</td></tr>
+                        <tr><td colspan="7" class="empty-state">Aún no tienes tutorías. Usa "Solicitar apoyo" para empezar.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

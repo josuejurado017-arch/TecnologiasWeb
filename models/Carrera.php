@@ -22,6 +22,22 @@ final class Carrera
         return $career ?: null;
     }
 
+    /** Verifica duplicado por nombre (colacion case/acento-insensible); ignora el propio registro al editar. */
+    public function nameExists(string $name, ?int $ignoreId = null): bool
+    {
+        $sql = 'SELECT 1 FROM carreras WHERE nombre_carrera = :nombre';
+        $params = ['nombre' => $name];
+        if ($ignoreId !== null) {
+            $sql .= ' AND id_carrera <> :id';
+            $params['id'] = $ignoreId;
+        }
+        $sql .= ' LIMIT 1';
+        $statement = Database::connection()->prepare($sql);
+        $statement->execute($params);
+
+        return (bool) $statement->fetchColumn();
+    }
+
     public function create(string $name): void
     {
         $statement = Database::connection()->prepare(

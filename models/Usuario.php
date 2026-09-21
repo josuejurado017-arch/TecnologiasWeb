@@ -16,7 +16,7 @@ final class Usuario
     public function findById(int $id): ?array
     {
         $statement = Database::connection()->prepare(
-            'SELECT u.id_usuario, u.id_rol, u.nombre, u.apellido, u.correo, u.usuario, u.telefono, u.estado, r.nombre_rol FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol WHERE u.id_usuario = :id_usuario LIMIT 1'
+            'SELECT u.id_usuario, u.id_rol, u.nombre, u.apellido, u.correo, u.usuario, u.telefono, u.carnet_identidad, u.estado, r.nombre_rol FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol WHERE u.id_usuario = :id_usuario LIMIT 1'
         );
         $statement->execute(['id_usuario' => $id]);
         $user = $statement->fetch();
@@ -33,10 +33,10 @@ final class Usuario
         return $statement->fetchAll();
     }
 
-    public function create(array $data): void
+    public function create(array $data): int
     {
         $statement = Database::connection()->prepare(
-            'INSERT INTO usuarios (id_rol, nombre, apellido, correo, usuario, contrasena_hash, telefono, estado) VALUES (:id_rol, :nombre, :apellido, :correo, :usuario, :contrasena_hash, :telefono, :estado)'
+            "INSERT INTO usuarios (id_rol, nombre, apellido, correo, usuario, contrasena_hash, telefono, carnet_identidad, estado) VALUES (:id_rol, :nombre, :apellido, :correo, :usuario, :contrasena_hash, :telefono, :carnet_identidad, 'activo')"
         );
         $statement->execute([
             'id_rol' => $data['id_rol'],
@@ -46,8 +46,19 @@ final class Usuario
             'usuario' => $data['usuario'],
             'contrasena_hash' => password_hash($data['contrasena'], PASSWORD_DEFAULT),
             'telefono' => $data['telefono'] !== '' ? $data['telefono'] : null,
-            'estado' => $data['estado'],
+            'carnet_identidad' => ($data['carnet_identidad'] ?? '') !== '' ? $data['carnet_identidad'] : null,
         ]);
+
+        return (int) Database::connection()->lastInsertId();
+    }
+
+    public function roleNameById(int $roleId): ?string
+    {
+        $statement = Database::connection()->prepare('SELECT nombre_rol FROM roles WHERE id_rol = :id LIMIT 1');
+        $statement->execute(['id' => $roleId]);
+        $name = $statement->fetchColumn();
+
+        return $name === false ? null : (string) $name;
     }
 
     public function update(int $id, array $data): void
@@ -59,11 +70,12 @@ final class Usuario
             'correo' => $data['correo'],
             'usuario' => $data['usuario'],
             'telefono' => $data['telefono'] !== '' ? $data['telefono'] : null,
+            'carnet_identidad' => ($data['carnet_identidad'] ?? '') !== '' ? $data['carnet_identidad'] : null,
             'estado' => $data['estado'],
             'id_usuario' => $id,
         ];
 
-        $sql = 'UPDATE usuarios SET id_rol = :id_rol, nombre = :nombre, apellido = :apellido, correo = :correo, usuario = :usuario, telefono = :telefono, estado = :estado';
+        $sql = 'UPDATE usuarios SET id_rol = :id_rol, nombre = :nombre, apellido = :apellido, correo = :correo, usuario = :usuario, telefono = :telefono, carnet_identidad = :carnet_identidad, estado = :estado';
         if ($data['contrasena'] !== '') {
             $sql .= ', contrasena_hash = :contrasena_hash';
             $fields['contrasena_hash'] = password_hash($data['contrasena'], PASSWORD_DEFAULT);
@@ -87,7 +99,7 @@ final class Usuario
     public function activate(int $id): bool
     {
         $statement = Database::connection()->prepare(
-            "UPDATE usuarios SET estado = 'activo' WHERE id_usuario = :id_usuario AND estado IN ('pendiente', 'inactivo')"
+            "UPDATE usuarios SET estado = 'activo' WHERE id_usuario = :id_usuario AND estado = 'inactivo'"
         );
         $statement->execute(['id_usuario' => $id]);
 

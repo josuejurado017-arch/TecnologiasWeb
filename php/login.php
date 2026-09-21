@@ -9,8 +9,8 @@ if (Auth::check()) {
 
 $error = null;
 $success = ($_GET['registered'] ?? '') === '1'
-    ? 'Registro enviado. Un administrador debe aprobar tu cuenta antes de iniciar sesion.'
-    : (($_GET['tutor_registered'] ?? '') === '1' ? 'Postulacion enviada. Un administrador debe aprobar tu cuenta antes de iniciar sesion.' : null);
+    ? 'Cuenta creada correctamente. Ya puedes iniciar sesión.'
+    : (($_GET['tutor_registered'] ?? '') === '1' ? 'Cuenta de tutor creada correctamente. Ya puedes iniciar sesión.' : null);
 $username = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -39,8 +39,8 @@ final class RegistroController
     private function normalize(array $input): array
     {
         return [
-            'nombre' => trim((string) ($input['nombre'] ?? '')),
-            'apellido' => trim((string) ($input['apellido'] ?? '')),
+            'nombre' => normalize_name((string) ($input['nombre'] ?? '')),
+            'apellido' => normalize_name((string) ($input['apellido'] ?? '')),
             'correo' => trim((string) ($input['correo'] ?? '')),
             'usuario' => trim((string) ($input['usuario'] ?? '')),
             'contrasena' => (string) ($input['contrasena'] ?? ''),
@@ -65,7 +65,7 @@ final class RegistroController
             }
         }
         if (!filter_var($data['correo'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Ingrese un correo valido.';
+            $errors[] = 'Ingrese un correo válido.';
         }
         $usernameError = validation_username($data['usuario']);
         if ($usernameError !== null) {
@@ -75,14 +75,14 @@ final class RegistroController
         if ($phoneError !== null) {
             $errors[] = $phoneError;
         }
-        if (strlen($data['contrasena']) < 6) {
-            $errors[] = 'La contrasena debe tener al menos 6 caracteres.';
+        if (strlen($data['contrasena']) < 8) {
+            $errors[] = 'La contraseña debe tener al menos 8 caracteres.';
         }
         if ($data['contrasena'] !== $data['confirmacion']) {
-            $errors[] = 'Las contrasenas no coinciden.';
+            $errors[] = 'Las contraseñas no coinciden.';
         }
         if ($careerId === false || $careerId < 1 || !$this->model->careerExists((int) $careerId)) {
-            $errors[] = 'Seleccione una carrera valida.';
+            $errors[] = 'Seleccione una carrera válida.';
         }
         if ($semester === false || $semester < 1 || $semester > 20) {
             $errors[] = 'El semestre debe estar entre 1 y 20.';

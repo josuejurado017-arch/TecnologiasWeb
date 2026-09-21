@@ -52,7 +52,7 @@ final class EvaluacionGrupoController
             if (mb_strlen($comentario) > 1000) {
                 $errors[] = 'El comentario no puede superar 1000 caracteres.';
             } elseif (preg_match('/[\x00-\x1F\x7F]/', $comentario)) {
-                $errors[] = 'El comentario contiene caracteres no validos.';
+                $errors[] = 'El comentario contiene caracteres no válidos.';
             }
         }
 

@@ -39,7 +39,7 @@ final class GruposController
             return 'Indica un motivo de al menos 4 caracteres.';
         }
         if (preg_match('/[\x00-\x1F\x7F]/', $motivo)) {
-            return 'El motivo contiene caracteres no validos.';
+            return 'El motivo contiene caracteres no válidos.';
         }
 
         $grupo = $this->grupos->findBasic($grupoId);

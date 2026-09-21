@@ -3,8 +3,8 @@
 <main class="container">
     <div class="page-heading">
         <div>
-            <h1>Grupos de tutoria</h1>
-            <p>Supervision de los grupos generados y la demanda de la campana activa.</p>
+            <h1>Grupos de tutoría</h1>
+            <p>Supervisión de los grupos generados y la demanda del período activo.</p>
         </div>
     </div>
 
@@ -17,13 +17,13 @@
     <?php if (!empty($gerr)): ?><p class="alert" role="alert"><?= e($gerr) ?></p><?php endif; ?>
 
     <?php if (!$periodo): ?>
-        <p class="alert" role="alert">No hay una campana de tutorias activa. Activa una en Campanas de tutoria.</p>
+        <p class="alert" role="alert">No hay un período de tutoría activo. Activa uno en Períodos de tutoría.</p>
     <?php else: ?>
-        <p class="panel-note">Campana: <strong><?= e($periodo['nombre']) ?></strong></p>
+        <p class="panel-note">Período: <strong><?= e($periodo['nombre']) ?></strong></p>
 
         <div class="table-wrapper card">
             <table>
-                <thead><tr><th>Materia</th><th>Tutor</th><th>Dia</th><th>Horario</th><th>Modalidad</th><th>Aula</th><th>Cupo</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Materia</th><th>Tutor</th><th>Día</th><th>Horario</th><th>Modalidad</th><th>Aula</th><th>Cupo</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody>
                     <?php foreach ($grupos as $g): ?>
                         <tr>
@@ -38,7 +38,7 @@
                             <td class="actions">
                                 <a href="<?= e(app_url('grupos/historial.php?grupo=' . (int) $g['id_grupo'])) ?>">Historial</a>
                                 <?php if ($g['estado'] !== 'cancelado' && $g['estado'] !== 'finalizado'): ?>
-                                    <form method="post" action="<?= e(app_url('grupos/cancel.php')) ?>" onsubmit="return confirm('Cancelar este grupo? Se avisara a los inscritos.');">
+                                    <form method="post" action="<?= e(app_url('grupos/cancel.php')) ?>" onsubmit="return confirm('¿Cancelar este grupo? Se avisará a los inscritos.');">
                                         <input type="hidden" name="id" value="<?= (int) $g['id_grupo'] ?>">
                                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                         <input class="inline-response" name="motivo" placeholder="Motivo" required maxlength="300">
@@ -49,14 +49,14 @@
                         </tr>
                     <?php endforeach; ?>
                     <?php if (!$grupos): ?>
-                        <tr><td colspan="9" class="empty-state">Aun no se han generado grupos en esta campana.</td></tr>
+                        <tr><td colspan="9" class="empty-state">Aún no se han generado grupos en este período.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
 
         <h2 style="margin-top:2rem;">Demanda insatisfecha</h2>
-        <p class="panel-note">Materias solicitadas sin grupo disponible (falta oferta de tutores u horarios).</p>
+        <p class="panel-note">Materias solicitadas sin grupo disponible por falta de tutores u horarios compatibles.</p>
         <div class="table-wrapper card">
             <table>
                 <thead><tr><th>Materia</th><th>Solicitudes en espera</th></tr></thead>

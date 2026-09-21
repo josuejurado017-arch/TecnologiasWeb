@@ -27,15 +27,15 @@ final class RegistroTutorController
             return [$data, ['El correo o usuario ya puede estar registrado.']];
         } catch (RuntimeException $exception) {
             error_log($exception->getMessage());
-            return [$data, ['No fue posible completar la postulacion.']];
+            return [$data, ['No fue posible crear la cuenta de tutor.']];
         }
     }
 
     private function normalize(array $input): array
     {
         return [
-            'nombre' => trim((string) ($input['nombre'] ?? '')),
-            'apellido' => trim((string) ($input['apellido'] ?? '')),
+            'nombre' => normalize_name((string) ($input['nombre'] ?? '')),
+            'apellido' => normalize_name((string) ($input['apellido'] ?? '')),
             'correo' => trim((string) ($input['correo'] ?? '')),
             'usuario' => trim((string) ($input['usuario'] ?? '')),
             'contrasena' => (string) ($input['contrasena'] ?? ''),
@@ -56,17 +56,17 @@ final class RegistroTutorController
             }
         }
         if (!filter_var($data['correo'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Ingrese un correo valido.';
+            $errors[] = 'Ingrese un correo válido.';
         }
         $usernameError = validation_username($data['usuario']);
         if ($usernameError !== null) {
             $errors[] = $usernameError;
         }
-        if (strlen($data['contrasena']) < 6) {
-            $errors[] = 'La contrasena debe tener al menos 6 caracteres.';
+        if (strlen($data['contrasena']) < 8) {
+            $errors[] = 'La contraseña debe tener al menos 8 caracteres.';
         }
         if ($data['contrasena'] !== $data['confirmacion']) {
-            $errors[] = 'Las contrasenas no coinciden.';
+            $errors[] = 'Las contraseñas no coinciden.';
         }
         $phoneError = validation_phone($data['telefono']);
         if ($phoneError !== null) {
@@ -77,7 +77,7 @@ final class RegistroTutorController
             $errors[] = $specialtyError;
         }
         if (strlen($data['biografia']) > 2000 || preg_match('/[\x00-\x1F\x7F]/', $data['biografia'])) {
-            $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no validos.';
+            $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no válidos.';
         }
 
         return $errors;

@@ -59,16 +59,16 @@
                         <td class="actions">
                             <a href="<?= e(app_url('usuarios/edit.php?id=' . (int) $usuario['id_usuario'])) ?>">Editar</a>
                             <?php if ($usuario['estado'] === 'activo'): ?>
-                                <form method="post" action="<?= e(app_url('usuarios/delete.php')) ?>" onsubmit="return confirm('Desactivar este usuario?');">
+                                <form method="post" action="<?= e(app_url('usuarios/delete.php')) ?>" onsubmit="return confirm('¿Desactivar este usuario?');">
                                     <input type="hidden" name="id" value="<?= (int) $usuario['id_usuario'] ?>">
                                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                     <button class="link-button" type="submit">Desactivar</button>
                                 </form>
                             <?php else: ?>
-                                <form method="post" action="<?= e(app_url('usuarios/activate.php')) ?>" onsubmit="return confirm('Activar esta cuenta?');">
+                                <form method="post" action="<?= e(app_url('usuarios/activate.php')) ?>" onsubmit="return confirm('¿Activar esta cuenta?');">
                                     <input type="hidden" name="id" value="<?= (int) $usuario['id_usuario'] ?>">
                                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                    <button class="link-button success-link" type="submit"><?= $usuario['estado'] === 'pendiente' ? 'Aprobar' : 'Activar' ?></button>
+                                    <button class="link-button success-link" type="submit">Activar</button>
                                 </form>
                             <?php endif; ?>
                         </td>

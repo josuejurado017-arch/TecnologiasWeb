@@ -1,6 +1,6 @@
 <?php
 $isEditing = ($mode ?? 'create') === 'edit';
-$title = $isEditing ? 'Editar campana' : 'Nueva campana';
+$title = $isEditing ? 'Editar período' : 'Nuevo período';
 $action = $isEditing ? app_url('periodos/edit.php?id=' . (int) $data['id_periodo']) : app_url('periodos/create.php');
 require __DIR__ . '/../layouts/header.php';
 ?>
@@ -13,7 +13,7 @@ require __DIR__ . '/../layouts/header.php';
         <?php endif; ?>
         <form method="post" action="<?= e($action) ?>">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-            <label for="nombre">Nombre de la campana</label>
+            <label for="nombre">Nombre del período</label>
             <input id="nombre" name="nombre" type="text" minlength="3" maxlength="120" required value="<?= e($data['nombre'] ?? '') ?>" placeholder="Ej. Tutorias Invierno 2027">
             <div class="form-grid">
                 <div>

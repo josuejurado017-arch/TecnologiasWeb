@@ -3,10 +3,10 @@
 <main class="container">
     <div class="page-heading">
         <div>
-            <h1>Campanas de tutoria</h1>
-            <p>Periodos academicos de apoyo (por ejemplo Enero y Julio). Solo una puede estar activa.</p>
+            <h1>Períodos de tutoría</h1>
+            <p>Períodos académicos de apoyo (por ejemplo Enero y Julio). Solo uno puede estar activo.</p>
         </div>
-        <a class="button" href="<?= e(app_url('periodos/create.php')) ?>">Nueva campana</a>
+        <a class="button" href="<?= e(app_url('periodos/create.php')) ?>">Nuevo período</a>
     </div>
 
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>
@@ -15,15 +15,15 @@
     <div class="table-toolbar">
         <div class="search-field">
             <span class="search-icon" aria-hidden="true">/</span>
-            <label class="sr-only" for="periodo-search">Buscar campanas</label>
-            <input id="periodo-search" type="search" placeholder="Buscar campana..." data-table-search>
+            <label class="sr-only" for="periodo-search">Buscar periodos</label>
+            <input id="periodo-search" type="search" placeholder="Buscar periodo..." data-table-search>
         </div>
         <span class="table-meta" data-table-count><?= count($periodos) ?> resultado<?= count($periodos) === 1 ? '' : 's' ?></span>
     </div>
 
     <div class="table-wrapper card">
         <table>
-            <thead><tr><th>ID</th><th>Campana</th><th>Inicio</th><th>Fin</th><th>Cupos (min/max)</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>ID</th><th>Periodo</th><th>Inicio</th><th>Fin</th><th>Cupos (min/max)</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
                 <?php foreach ($periodos as $periodo): ?>
                     <tr data-row>
@@ -36,13 +36,13 @@
                         <td class="actions">
                             <a href="<?= e(app_url('periodos/edit.php?id=' . (int) $periodo['id_periodo'])) ?>">Editar</a>
                             <?php if ($periodo['estado'] !== 'activa'): ?>
-                                <form method="post" action="<?= e(app_url('periodos/activate.php')) ?>" onsubmit="return confirm('Activar esta campana? Las demas pasaran a borrador.');">
+                                <form method="post" action="<?= e(app_url('periodos/activate.php')) ?>" onsubmit="return confirm('Activar este período? Los demás pasarán a borrador.');">
                                     <input type="hidden" name="id" value="<?= (int) $periodo['id_periodo'] ?>">
                                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                     <button class="link-button" type="submit">Activar</button>
                                 </form>
                             <?php endif; ?>
-                            <form method="post" action="<?= e(app_url('periodos/delete.php')) ?>" onsubmit="return confirm('Eliminar esta campana?');">
+                            <form method="post" action="<?= e(app_url('periodos/delete.php')) ?>" onsubmit="return confirm('Eliminar este período?');">
                                 <input type="hidden" name="id" value="<?= (int) $periodo['id_periodo'] ?>">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                 <button class="link-button" type="submit">Eliminar</button>
@@ -50,7 +50,7 @@
                         </td>
                     </tr>
                 <?php endforeach; ?>
-                <tr data-search-empty hidden><td colspan="7" class="empty-state">No se encontraron campanas.</td></tr>
+                <tr data-search-empty hidden><td colspan="7" class="empty-state">No se encontraron periodos.</td></tr>
             </tbody>
         </table>
     </div>

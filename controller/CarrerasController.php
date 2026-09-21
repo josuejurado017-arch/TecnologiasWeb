@@ -23,8 +23,8 @@ final class CarrerasController
 
     public function store(array $input): array
     {
-        $data = ['nombre_carrera' => trim((string) ($input['nombre_carrera'] ?? ''))];
-        $errors = $this->validate($data);
+        $data = ['nombre_carrera' => normalize_name((string) ($input['nombre_carrera'] ?? ''))];
+        $errors = $this->validate($data, null);
 
         if ($errors) {
             return [$data, $errors];
@@ -41,8 +41,8 @@ final class CarrerasController
 
     public function update(int $id, array $input): array
     {
-        $data = ['nombre_carrera' => trim((string) ($input['nombre_carrera'] ?? ''))];
-        $errors = $this->validate($data);
+        $data = ['nombre_carrera' => normalize_name((string) ($input['nombre_carrera'] ?? ''))];
+        $errors = $this->validate($data, $id);
 
         if ($errors) {
             return [$data, $errors];
@@ -68,9 +68,15 @@ final class CarrerasController
         }
     }
 
-    private function validate(array $data): array
+    private function validate(array $data, ?int $ignoreId): array
     {
         $error = validation_text($data['nombre_carrera'], 'nombre de la carrera', 150);
-        return $error === null ? [] : [$error];
+        if ($error !== null) {
+            return [$error];
+        }
+        if ($this->model->nameExists($data['nombre_carrera'], $ignoreId)) {
+            return ['Ya existe una carrera con ese nombre.'];
+        }
+        return [];
     }
 }

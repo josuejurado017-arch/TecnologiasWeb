@@ -5,7 +5,7 @@ Auth::requireRole('administrador');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? null)) {
     http_response_code(400);
-    exit('Solicitud no valida.');
+    exit('Solicitud no válida.');
 }
 
 $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);

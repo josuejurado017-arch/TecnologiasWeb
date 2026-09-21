@@ -23,6 +23,7 @@ $data = [
     'usuario' => $user['usuario'],
     'contrasena' => '',
     'telefono' => $user['telefono'] ?? '',
+    'carnet_identidad' => $user['carnet_identidad'] ?? '',
     'estado' => $user['estado'],
 ];
 $errors = [];

@@ -98,15 +98,15 @@ final class DisponibilidadController
         $days = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
 
         if ($tutorId === false || $tutorId < 1) {
-            $errors[] = 'Seleccione un tutor valido.';
+            $errors[] = 'Seleccione un tutor válido.';
         }
         if (!in_array($data['dia_semana'], $days, true)) {
-            $errors[] = 'Seleccione un dia valido.';
+            $errors[] = 'Seleccione un dia válido.';
         }
         $startError = validation_time($data['hora_inicio'], 'hora inicial');
         $endError = validation_time($data['hora_fin'], 'hora final');
         if ($startError !== null || $endError !== null) {
-            $errors[] = 'Ingrese horarios validos.';
+            $errors[] = 'Ingrese horarios válidos.';
         } elseif ($data['hora_fin'] <= $data['hora_inicio']) {
             $errors[] = 'La hora final debe ser posterior a la inicial.';
         }

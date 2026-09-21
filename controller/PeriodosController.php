@@ -34,7 +34,7 @@ final class PeriodosController
             return [$data, []];
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
-            return [$data, ['No se pudo guardar la campana.']];
+            return [$data, ['No se pudo guardar el periodo.']];
         }
     }
 
@@ -51,21 +51,21 @@ final class PeriodosController
             return [$data, []];
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
-            return [$data, ['No se pudo actualizar la campana.']];
+            return [$data, ['No se pudo actualizar el periodo.']];
         }
     }
 
     public function activate(int $id): ?string
     {
         if (!$this->model->findById($id)) {
-            return 'La campana no existe.';
+            return 'El periodo no existe.';
         }
         try {
             $this->model->setActiva($id);
             return null;
         } catch (Throwable $exception) {
             error_log($exception->getMessage());
-            return 'No se pudo activar la campana.';
+            return 'No se pudo activar el periodo.';
         }
     }
 
@@ -76,7 +76,7 @@ final class PeriodosController
             return null;
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
-            return 'No se puede eliminar la campana porque tiene grupos o inscripciones asociadas.';
+            return 'No se puede eliminar el periodo porque tiene grupos o inscripciones asociadas.';
         }
     }
 
@@ -100,33 +100,33 @@ final class PeriodosController
     {
         $errors = [];
 
-        $nameError = validation_label($data['nombre'], 'nombre de la campana', 120);
+        $nameError = validation_label($data['nombre'], 'nombre del período', 120);
         if ($nameError !== null) {
             $errors[] = $nameError;
         } elseif ($this->model->nameExists($data['nombre'], $ignoreId)) {
-            $errors[] = 'Ya existe una campana con ese nombre.';
+            $errors[] = 'Ya existe un periodo con ese nombre.';
         }
 
         $start = $this->parseDate($data['fecha_inicio']);
         $end = $this->parseDate($data['fecha_fin']);
         if ($start === null) {
-            $errors[] = 'La fecha de inicio no es valida.';
+            $errors[] = 'La fecha de inicio no es válida.';
         }
         if ($end === null) {
-            $errors[] = 'La fecha de fin no es valida.';
+            $errors[] = 'La fecha de fin no es válida.';
         }
         if ($start !== null && $end !== null && $end < $start) {
             $errors[] = 'La fecha de fin debe ser posterior o igual a la de inicio.';
         }
 
         if ($data['cupo_min_grupo'] < 1 || $data['cupo_min_grupo'] > 100) {
-            $errors[] = 'El cupo minimo por grupo debe estar entre 1 y 100.';
+            $errors[] = 'El cupo mínimo por grupo debe estar entre 1 y 100.';
         }
         if ($data['cupo_max_default'] < 1 || $data['cupo_max_default'] > 200) {
-            $errors[] = 'El cupo maximo por defecto debe estar entre 1 y 200.';
+            $errors[] = 'El cupo máximo por defecto debe estar entre 1 y 200.';
         }
         if ($data['cupo_max_default'] < $data['cupo_min_grupo']) {
-            $errors[] = 'El cupo maximo no puede ser menor que el cupo minimo.';
+            $errors[] = 'El cupo máximo no puede ser menor que el cupo mínimo.';
         }
 
         return $errors;

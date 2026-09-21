@@ -93,12 +93,12 @@ final class EstudiantesController
         $semester = filter_var($data['semestre'], FILTER_VALIDATE_INT);
 
         if ($userId === false || $userId < 1) {
-            $errors[] = 'Seleccione un usuario estudiante valido.';
+            $errors[] = 'Seleccione un usuario estudiante válido.';
         } elseif (!$this->model->userIsEligible((int) $userId, $currentUserId)) {
             $errors[] = 'El usuario seleccionado no es elegible para este perfil.';
         }
         if ($careerId === false || $careerId < 1 || !$this->model->careerExists((int) $careerId)) {
-            $errors[] = 'Seleccione una carrera valida.';
+            $errors[] = 'Seleccione una carrera válida.';
         }
         if ($semester === false || $semester < 1 || $semester > 20) {
             $errors[] = 'El semestre debe estar entre 1 y 20.';

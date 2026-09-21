@@ -1,5 +1,5 @@
 <?php
-$title = 'Iniciar sesion';
+$title = 'Iniciar sesión';
 require __DIR__ . '/../layouts/header.php';
 ?>
 
@@ -9,13 +9,13 @@ require __DIR__ . '/../layouts/header.php';
             <img class="brand-logo" src="<?= e(app_url('Front/assets/img/upds-logo.svg')) ?>" alt="UPDS">
         </div>
         <div>
-            <span class="hero-kicker">Portal de apoyo academico</span>
-            <h1>Aprende con el acompanamiento correcto.</h1>
-            <p>Encuentra tutores, agenda sesiones y organiza tu avance academico desde un espacio inspirado en la experiencia UPDS.</p>
+            <span class="hero-kicker">Portal de apoyo académico</span>
+            <h1>Aprende con el acompañamiento correcto.</h1>
+            <p>Solicita apoyo por materia y el sistema te asignará automáticamente un grupo de tutoría con tutor, aula y horario.</p>
         </div>
         <ul class="auth-points">
-            <li>Agenda tutorias segun tu disponibilidad.</li>
-            <li>Encuentra apoyo por materia y carrera.</li>
+            <li>Elige las materias donde necesitas apoyo.</li>
+            <li>El sistema arma tu grupo de tutoría.</li>
         </ul>
     </section>
 
@@ -34,13 +34,13 @@ require __DIR__ . '/../layouts/header.php';
                 <label for="usuario">Usuario</label>
                 <input id="usuario" name="usuario" type="text" minlength="4" maxlength="50" pattern="[A-Za-z0-9._-]{4,50}" required autocomplete="username" value="<?= e($username ?? '') ?>">
 
-                <label for="contrasena">Contrasena</label>
+                <label for="contrasena">Contraseña</label>
                 <input id="contrasena" name="contrasena" type="password" required autocomplete="current-password">
 
-                <button type="submit">Iniciar sesion <span aria-hidden="true">-&gt;</span></button>
+                <button type="submit">Iniciar sesión <span aria-hidden="true">-&gt;</span></button>
             </form>
-            <p class="auth-switch">¿Aun no tienes una cuenta? <a href="<?= e(app_url('register.php')) ?>">Registrate como estudiante</a></p>
-            <p class="auth-switch"><a href="<?= e(app_url('postular-tutor.php')) ?>">Postulate como tutor</a></p>
+            <p class="auth-switch">¿Aún no tienes una cuenta? <a href="<?= e(app_url('register.php')) ?>">Regístrate como estudiante</a></p>
+            <p class="auth-switch"><a href="<?= e(app_url('postular-tutor.php')) ?>">Regístrate como tutor</a></p>
         </div>
     </section>
 </main>
