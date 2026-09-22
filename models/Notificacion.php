@@ -114,9 +114,27 @@ final class Notificacion
             null,
             'grupo_cancelado',
             'Grupo de tutoria cancelado',
-            'Tu grupo de ' . $materia . ' fue cancelado. Vuelve a solicitar apoyo para reasignarte.',
+            'Tu grupo de ' . $materia . ' fue cancelado. Quedaste en lista de espera: el sistema te reasignara automaticamente cuando haya un grupo compatible.',
             '/mis-tutorias/',
             'grupo_cancelado:' . $grupoId . ':' . $studentUserId
+        );
+    }
+
+    /**
+     * Notifica a un estudiante en espera que el reproceso automatico le consiguio grupo.
+     * La clave incluye la fecha para permitir un aviso nuevo si vuelve a esperar en el mismo periodo.
+     */
+    public function notifyDemandAttended(PDO $pdo, int $studentUserId, int $materiaId, string $materia, string $detalle): void
+    {
+        $this->create(
+            $pdo,
+            $studentUserId,
+            null,
+            'demanda_atendida',
+            'Se abrio un grupo para tu materia en espera',
+            'Ya tienes grupo de ' . $materia . '. ' . $detalle,
+            '/mis-tutorias/',
+            'demanda_atendida:' . $materiaId . ':' . $studentUserId . ':' . date('Ymd')
         );
     }
 

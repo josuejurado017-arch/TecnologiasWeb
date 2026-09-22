@@ -93,6 +93,22 @@ final class ReporteCampania
         return $statement->fetchAll();
     }
 
+    /** Cobertura de horarios de los tutores activos (independiente del periodo). */
+    public function coberturaTutores(): array
+    {
+        $configurada = TutorMateriaConfig::sqlMateriaConfigurada('tm');
+        $row = Database::connection()->query(
+            "SELECT
+                (SELECT COUNT(*) FROM tutores t INNER JOIN usuarios u ON u.id_usuario = t.id_usuario WHERE u.estado = 'activo') AS tutores_activos,
+                (SELECT COUNT(DISTINCT tm.id_tutor) FROM tutor_materia tm
+                    INNER JOIN tutores t ON t.id_tutor = tm.id_tutor
+                    INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+                    WHERE {$configurada}) AS tutores_con_horarios"
+        )->fetch();
+
+        return $row ?: [];
+    }
+
     public function satisfaction(int $periodoId): array
     {
         $statement = Database::connection()->prepare(

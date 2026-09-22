@@ -9,7 +9,7 @@ require __DIR__ . '/../layouts/header.php';
         <div>
             <span class="hero-kicker">Comunidad de tutores</span>
             <h1>Comparte lo que sabes.</h1>
-            <p>Crea tu cuenta de tutor y accede de inmediato. Luego eliges las materias que puedes impartir y registras tu disponibilidad.</p>
+            <p>Crea tu cuenta de tutor y accede de inmediato. Luego eliges las materias que puedes impartir y configuras los turnos y días de cada una.</p>
         </div>
         <ul class="auth-points">
             <li>Tu cuenta tendrá rol tutor.</li>

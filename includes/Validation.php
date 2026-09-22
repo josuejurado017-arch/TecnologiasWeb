@@ -32,11 +32,16 @@ function validation_text(string $value, string $label, int $maxLength): ?string
     return null;
 }
 
-/** Normaliza nombres y títulos, conservando partículas internas en minúscula. */
+/**
+ * Normaliza nombres y títulos, conservando partículas internas en minúscula.
+ * Preserva siglas y numeros romanos escritos en mayuscula (UPDS, II, IV) tal
+ * como se escribieron, en vez de degradarlos a "Upds"/"Ii".
+ */
 function normalize_name(string $value): string
 {
     $value = preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', $value) ?? $value;
     $value = preg_replace('/\s+/u', ' ', trim($value)) ?? trim($value);
+    $rawWords = explode(' ', $value);
     $words = explode(' ', mb_convert_case($value, MB_CASE_TITLE, 'UTF-8'));
     $particles = ['de', 'del', 'la', 'las', 'los', 'y'];
 
@@ -44,6 +49,11 @@ function normalize_name(string $value): string
         $lower = mb_strtolower($word, 'UTF-8');
         if ($index > 0 && in_array($lower, $particles, true)) {
             $words[$index] = $lower;
+            continue;
+        }
+        $raw = $rawWords[$index] ?? '';
+        if (mb_strlen($raw, 'UTF-8') >= 2 && preg_match('/^\p{Lu}+$/u', $raw)) {
+            $words[$index] = $raw;
         }
     }
 

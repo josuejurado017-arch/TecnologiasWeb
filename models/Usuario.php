@@ -132,6 +132,17 @@ final class Usuario
         return $user ?: null;
     }
 
+    /** Cuenta intentos fallidos recientes de un usuario, para bloqueo temporal de login. */
+    public function recentFailedAttempts(int $userId, int $minutes): int
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM registro_accesos WHERE id_usuario = :id_usuario AND resultado = \'fallido\' AND fecha_hora >= (NOW() - INTERVAL :minutes MINUTE)'
+        );
+        $statement->execute(['id_usuario' => $userId, 'minutes' => $minutes]);
+
+        return (int) $statement->fetchColumn();
+    }
+
     public function registerAccess(int $userId, string $result): void
     {
         $statement = Database::connection()->prepare(

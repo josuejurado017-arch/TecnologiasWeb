@@ -66,8 +66,8 @@ final class Auth
      * El administrador tiene acceso total. Reemplaza a la antigua tabla permisos_rol.
      */
     private const ROLE_MODULES = [
-        'tutor' => ['dashboard', 'disponibilidad', 'evaluaciones', 'tutores', 'tutorias', 'asignaciones'],
-        'estudiante' => ['dashboard', 'disponibilidad', 'evaluaciones', 'materias', 'tutores', 'tutorias'],
+        'tutor' => ['dashboard', 'evaluaciones', 'tutores', 'tutorias', 'asignaciones'],
+        'estudiante' => ['dashboard', 'evaluaciones', 'materias', 'tutores', 'tutorias'],
     ];
 
     public static function can(string $module): bool

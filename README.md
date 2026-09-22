@@ -27,7 +27,8 @@ Modulos disponibles:
 - `/usuarios/`, `/roles/`, `/carreras/` y `/materias/`: administracion general.
 - `/estudiantes/` y `/tutores/`: perfiles academicos y profesionales.
 - `/asignaciones/`: materias asignadas a tutores.
-- `/disponibilidad/`: horarios de atencion de tutores.
+- `/mis-materias/`: materias del tutor y sus horarios (turnos, dias, sabados, modalidad).
+- `/cobertura-tutores/`: supervision del administrador de tutores sin horarios configurados.
 - `/tutorias/`: solicitudes y estados de tutorias.
 - `/evaluaciones/`: evaluaciones de tutorias realizadas.
 - `/accesos/`: reporte de auditoria para administradores.

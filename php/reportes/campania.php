@@ -24,6 +24,9 @@ if ($periodo) {
         'topCarreras' => $reporte->topCarreras($pid),
         'asistencia' => $reporte->attendanceBreakdown($pid),
         'satisfaccion' => $reporte->satisfaction($pid),
+        'coberturaTutores' => $reporte->coberturaTutores(),
+        'demanda' => (new Demanda())->conversion($pid),
+        'demandaMaterias' => (new Demanda())->summaryByPeriodo($pid),
     ];
 }
 

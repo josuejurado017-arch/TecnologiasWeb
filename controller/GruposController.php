@@ -58,7 +58,7 @@ final class GruposController
             $this->inscripciones->cancelByGroup($grupoId);
             $this->grupos->cancel($grupoId, $motivo);
             foreach ($estudiantes as $est) {
-                $this->demanda->record((int) $grupo['id_periodo'], (int) $grupo['id_materia'], (int) $est['id_estudiante']);
+                $this->demanda->record((int) $grupo['id_periodo'], (int) $grupo['id_materia'], (int) $est['id_estudiante'], Demanda::MOTIVO_GRUPO_CANCELADO);
             }
             $this->historial->log($connection, $grupoId, 'cancelado', $estadoAnterior, 'cancelado', $adminUserId, $motivo);
             $connection->commit();
@@ -76,6 +76,12 @@ final class GruposController
         } catch (Throwable $exception) {
             error_log('Notificacion cancelacion: ' . $exception->getMessage());
         }
+
+        // Reasignacion automatica SOLO a grupos ya existentes de la materia: crear grupos
+        // nuevos aqui recrearia al instante el que el administrador acaba de cancelar
+        // (mismo tutor, mismo bloque). El bloque liberado se aprovechara en el siguiente
+        // disparador natural (nueva disponibilidad, tutor habilitado o solicitud nueva).
+        (new AsignacionController())->reprocesarMateria((int) $grupo['id_materia'], null, null, false);
 
         return null;
     }

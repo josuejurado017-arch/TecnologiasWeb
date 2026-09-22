@@ -15,10 +15,14 @@ $username = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = (string) ($_POST['usuario'] ?? '');
-    $error = (new AuthController())->login(
-        $username,
-        (string) ($_POST['contrasena'] ?? '')
-    );
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        $error = 'La sesión del formulario expiró. Intenta de nuevo.';
+    } else {
+        $error = (new AuthController())->login(
+            $username,
+            (string) ($_POST['contrasena'] ?? '')
+        );
+    }
 }
 
 require dirname(__DIR__) . '/views/auth/login.php';

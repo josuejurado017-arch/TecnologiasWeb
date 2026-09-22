@@ -43,6 +43,33 @@
                 </tbody>
             </table>
         </div>
+
+        <?php if ($enEspera): ?>
+            <h2 style="margin-top:2rem;">⏳ En espera</h2>
+            <p class="panel-note">Materias que solicitaste y aún no tienen grupo para ti. No necesitas volver a solicitarlas: cuando un tutor agregue horarios o se abra un grupo, el sistema te asignará automáticamente y te avisará.</p>
+            <div class="table-wrapper card">
+                <table>
+                    <thead><tr><th>Materia</th><th>Solicitado</th><th>Motivo</th><th>Oferta actual</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($enEspera as $m): ?>
+                            <tr>
+                                <td><?= e($m['nombre_materia']) ?><?php if ($m['nombre_carrera']): ?> <small><?= e($m['nombre_carrera']) ?></small><?php endif; ?></td>
+                                <td><?= e(date('d/m/Y', strtotime((string) $m['espera_desde']))) ?></td>
+                                <td><?= e(Demanda::MOTIVOS[$m['motivo_espera']] ?? 'En espera') ?></td>
+                                <td>
+                                    <?php if ($m['hay_oferta']): ?>
+                                        <?= (int) $m['tutores_habilitados'] ?> tutor(es) habilitado(s)<?php if ($m['grupos']): ?>, <?= count($m['grupos']) ?> grupo(s) con cupo<?php endif; ?>
+                                        · <a href="<?= e(app_url('tutorias/create.php?carrera=todas')) ?>">Reintentar</a>
+                                    <?php else: ?>
+                                        Sin tutor · <?= (int) $m['interesados'] ?> interesado(s)
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </main>
 

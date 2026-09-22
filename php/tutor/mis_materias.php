@@ -10,6 +10,8 @@ $controller = new TutorPortalController();
 $userId = (int) $user['id_usuario'];
 $subjects = $controller->subjects($userId);
 $availableSubjects = $controller->availableSubjects($userId);
+// Misma regla que el motor: sin horarios configurados en ninguna materia no se reciben grupos.
+$hasSchedule = array_filter($subjects, static fn (array $s): bool => $s['config']['configured']) !== [];
 $messages = [
     'subject-added' => 'Materia agregada correctamente.',
     'subject-removed' => 'Materia quitada correctamente.',

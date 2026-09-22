@@ -91,8 +91,11 @@ final class TutoresController
         } elseif (!$this->model->userIsEligible((int) $userId, $currentUserId)) {
             $errors[] = 'El usuario seleccionado no es elegible para este perfil.';
         }
-        if (strlen($data['especialidad']) > 150) {
-            $errors[] = 'La especialidad no puede superar 150 caracteres.';
+        if ($data['especialidad'] !== '') {
+            $specialtyError = validation_text($data['especialidad'], 'especialidad', 150);
+            if ($specialtyError !== null) {
+                $errors[] = $specialtyError;
+            }
         }
         if (strlen($data['biografia']) > 2000 || preg_match('/[\x00-\x1F\x7F]/', $data['biografia'])) {
             $errors[] = 'La biografia no puede superar 2000 caracteres ni contener caracteres no válidos.';

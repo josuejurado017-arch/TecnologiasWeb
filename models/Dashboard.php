@@ -33,12 +33,16 @@ final class Dashboard
             $extra = $periodoId && $studentId ? $reporte->studentSummary($studentId, $periodoId) : [];
             $pendientes = $periodoId && $studentId ? count((new Evaluacion())->pendingForStudent($studentId, $periodoId)) : 0;
 
+            $enEspera = $periodoId && $studentId ? count((new Demanda())->pendingForStudent($studentId, $periodoId)) : 0;
+
             return array_merge($base, $this->studentMeta($userId), [
                 'tutorias' => (int) ($extra['tutorias'] ?? 0),
                 'asistencias' => (int) ($extra['asistencias'] ?? 0),
                 'sesiones_registradas' => (int) ($extra['sesiones_registradas'] ?? 0),
                 'evaluaciones_pendientes' => $pendientes,
-                'materias_disponibles' => $this->materiasConOferta(),
+                'materias_disponibles' => $this->materiasConOferta($periodoId),
+                'materias_total' => $this->materiasTotal(),
+                'en_espera' => $enEspera,
             ]);
         }
 
@@ -51,12 +55,7 @@ final class Dashboard
         }
         $totalAsis = array_sum($asis);
         $presentes = ($asis['asistio'] ?? 0) + ($asis['parcial'] ?? 0) + ($asis['retraso'] ?? 0);
-        $demandaPend = 0;
-        if ($periodoId) {
-            foreach ((new Demanda())->summaryByPeriodo($periodoId) as $d) {
-                $demandaPend += (int) $d['solicitudes'];
-            }
-        }
+        $demanda = $periodoId ? (new Demanda())->conversion($periodoId) : [];
 
         return array_merge($base, $this->adminMeta(), [
             'grupos' => (int) ($totals['grupos'] ?? 0),
@@ -67,7 +66,10 @@ final class Dashboard
             'tutores_campania' => (int) ($totals['tutores'] ?? 0),
             'asistencia_pct' => $totalAsis > 0 ? (int) round($presentes * 100 / $totalAsis) : 0,
             'satisfaccion' => $sat['general'] !== null ? (float) ($sat['general'] ?? 0) : 0.0,
-            'demanda_pendiente' => $demandaPend,
+            'demanda_pendiente' => (int) ($demanda['pendientes'] ?? 0),
+            'demanda_sin_tutor' => (int) ($demanda['pend_sin_tutor'] ?? 0),
+            'demanda_materias_sin_tutor' => (int) ($demanda['materias_sin_tutor'] ?? 0),
+            'demanda_atendidas' => (int) ($demanda['atendidas'] ?? 0),
         ]);
     }
 
@@ -117,16 +119,19 @@ final class Dashboard
                 (SELECT COUNT(*) FROM materias) AS total_materias,
                 (SELECT COUNT(*) FROM aulas WHERE estado = 'activa') AS total_aulas"
         )->fetch();
+        $row = $row ?: [];
+        $row['tutores_sin_horarios'] = (new TutorMateriaConfig())->countTutorsWithoutSchedule();
 
-        return $row ?: [];
+        return $row;
     }
 
     private function tutorMeta(int $userId): array
     {
+        $configurada = TutorMateriaConfig::sqlMateriaConfigurada('tm');
         $statement = Database::connection()->prepare(
             "SELECT
                 (SELECT COUNT(*) FROM tutor_materia tm INNER JOIN tutores t ON t.id_tutor = tm.id_tutor WHERE t.id_usuario = :u1) AS materias_asignadas,
-                (SELECT COUNT(*) FROM disponibilidad_tutor d INNER JOIN tutores t ON t.id_tutor = d.id_tutor WHERE t.id_usuario = :u2) AS horarios_configurados"
+                (SELECT COUNT(*) FROM tutor_materia tm INNER JOIN tutores t ON t.id_tutor = tm.id_tutor WHERE t.id_usuario = :u2 AND {$configurada}) AS materias_configuradas"
         );
         $statement->execute(['u1' => $userId, 'u2' => $userId]);
 
@@ -145,14 +150,33 @@ final class Dashboard
         return $statement->fetch() ?: [];
     }
 
-    private function materiasConOferta(): int
+    /**
+     * Materias con oferta: tutor habilitado con horarios configurados O grupo con cupo en el
+     * periodo. Misma regla que OfertaMateria (estados grupo_* y por_abrir).
+     */
+    private function materiasConOferta(int $periodoId): int
     {
-        return (int) Database::connection()->query(
-            "SELECT COUNT(DISTINCT tm.id_materia)
-             FROM tutor_materia tm
-             INNER JOIN tutores t ON t.id_tutor = tm.id_tutor
-             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
-             INNER JOIN disponibilidad_tutor d ON d.id_tutor = t.id_tutor"
-        )->fetchColumn();
+        $configurada = TutorMateriaConfig::sqlMateriaConfigurada('tm');
+        $statement = Database::connection()->prepare(
+            "SELECT COUNT(*) FROM materias m
+             WHERE EXISTS (
+                 SELECT 1 FROM tutor_materia tm
+                 INNER JOIN tutores t ON t.id_tutor = tm.id_tutor
+                 INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+                 WHERE tm.id_materia = m.id_materia AND {$configurada}
+             ) OR EXISTS (
+                 SELECT 1 FROM grupos_tutoria g
+                 WHERE g.id_materia = m.id_materia AND g.id_periodo = :id_periodo
+                   AND g.estado IN ('formacion','confirmado') AND g.cupo_ocupado < g.cupo_max
+             )"
+        );
+        $statement->execute(['id_periodo' => $periodoId]);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    private function materiasTotal(): int
+    {
+        return (int) Database::connection()->query('SELECT COUNT(*) FROM materias')->fetchColumn();
     }
 }

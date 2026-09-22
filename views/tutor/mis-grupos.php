@@ -18,7 +18,7 @@
             <section class="card" style="margin-bottom:1rem;">
                 <div class="section-heading">
                     <div>
-                        <span class="eyebrow"><?= e($grupo['dia_semana']) ?> · <?= e(substr((string) $grupo['hora_inicio'], 0, 5)) ?>-<?= e(substr((string) $grupo['hora_fin'], 0, 5)) ?> · <?= e(ucfirst((string) $grupo['modalidad'])) ?></span>
+                        <span class="eyebrow"><?= e($grupo['dias'] ?: $grupo['dia_semana']) ?> · <?= e(substr((string) $grupo['hora_inicio'], 0, 5)) ?>-<?= e(substr((string) $grupo['hora_fin'], 0, 5)) ?> · <?= e(ucfirst((string) $grupo['modalidad'])) ?></span>
                         <h2><?= e($grupo['nombre_materia']) ?></h2>
                     </div>
                     <span class="badge badge-<?= e($grupo['estado']) ?>"><?= e(ucfirst((string) $grupo['estado'])) ?></span>

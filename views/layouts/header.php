@@ -66,15 +66,15 @@ $role = $user['nombre_rol'] ?? '';
                         <span>Tutores</span>
                     </a>
                     <span class="nav-label">Operación</span>
-                    <a class="nav-link <?= $activePage === 'disponibilidad' ? 'is-active' : '' ?>" href="<?= e(app_url('disponibilidad/')) ?>">
-                        <span class="nav-icon">DI</span>
-                        <span>Disponibilidad</span>
-                    </a>
                     <a class="nav-link <?= $activePage === 'grupos' ? 'is-active' : '' ?>" href="<?= e(app_url('grupos/')) ?>">
                         <span class="nav-icon">GR</span>
                         <span>Grupos de tutoría</span>
                     </a>
                     <span class="nav-label">Analítica</span>
+                    <a class="nav-link <?= $activePage === 'cobertura-tutores' ? 'is-active' : '' ?>" href="<?= e(app_url('cobertura-tutores/')) ?>">
+                        <span class="nav-icon">CT</span>
+                        <span>Cobertura de tutores</span>
+                    </a>
                     <a class="nav-link <?= $activePage === 'reportes-campania' ? 'is-active' : '' ?>" href="<?= e(app_url('reportes/campania.php')) ?>">
                         <span class="nav-icon">RC</span>
                         <span>Reportes</span>
@@ -95,12 +95,6 @@ $role = $user['nombre_rol'] ?? '';
                         <span>Mis materias</span>
                     </a><?php endif; ?>
                     <span class="nav-label">Operación</span>
-                <?php endif; ?>
-                <?php if ($role === 'tutor' && Auth::can('disponibilidad')): ?>
-                    <a class="nav-link <?= $activePage === 'disponibilidad' ? 'is-active' : '' ?>" href="<?= e(app_url('disponibilidad/')) ?>">
-                        <span class="nav-icon">DI</span>
-                        <span>Disponibilidad</span>
-                    </a>
                 <?php endif; ?>
                 <?php if ($role === 'tutor' && Auth::can('tutorias')): ?>
                     <a class="nav-link <?= $activePage === 'mis-grupos' ? 'is-active' : '' ?>" href="<?= e(app_url('mis-grupos/')) ?>">

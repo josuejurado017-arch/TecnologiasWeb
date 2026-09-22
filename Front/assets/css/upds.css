@@ -527,3 +527,58 @@ html[data-theme="light"] .secondary { background: #e7ebf4; color: var(--upds-ink
 .result-list { list-style:none; padding:0; margin:.5rem 0 1rem; display:flex; flex-direction:column; gap:.5rem; }
 .result-list li { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; padding:.6rem .8rem; border:1px solid var(--border,#dfe3ea); border-radius:.6rem; }
 .result-list small { flex-basis:100%; color:var(--text-3,#8a93a3); }
+
+/* Solicitar apoyo academico: catalogo informativo por estados (grupo disponible / en formacion / por abrir / en espera / sin tutor). */
+.result-panel { background: var(--upds-panel-2); border: 1px solid var(--upds-line); border-radius: 12px; margin: 0 0 1.5rem; padding: 1rem 1.1rem; }
+.result-panel h2 { font-size: 1rem; margin: 0 0 0.6rem; }
+.result-panel .button { margin-top: 0.6rem; }
+.result-panel .result-list li { border-color: var(--upds-line); }
+.offer-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 0.9rem 1.25rem; justify-content: space-between; margin: 1.25rem 0 1.1rem; }
+.segmented { background: var(--upds-panel-2); border: 1px solid var(--upds-line); border-radius: 10px; display: inline-flex; gap: 0.2rem; padding: 0.2rem; }
+.segmented a { border-radius: 8px; color: var(--upds-muted); font-size: 0.8rem; font-weight: 700; padding: 0.45rem 0.9rem; text-decoration: none; }
+.segmented a small { font-weight: 500; }
+.segmented a.is-active { background: var(--upds-purple); color: white; box-shadow: 0 4px 14px rgba(130, 117, 232, 0.25); }
+.segmented a[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
+.offer-summary { color: var(--upds-muted); display: flex; flex-wrap: wrap; font-size: 0.78rem; gap: 0.4rem 1rem; margin: 0; }
+.offer-summary b { color: var(--upds-ink); font-size: 0.95rem; margin-right: 0.15rem; }
+.offer-list { display: grid; gap: 0.85rem; list-style: none; margin: 0; padding: 0; }
+.offer-card { background: var(--upds-panel-2); border: 1px solid var(--upds-line); border-left-width: 5px; border-radius: 12px; padding: 0.95rem 1.1rem; }
+.offer-ok { border-left-color: var(--upds-teal); }
+.offer-forming { border-left-color: #7fd6a8; }
+.offer-pending { border-left-color: var(--upds-gold); }
+.offer-waiting { border-left-color: #6f9df7; }
+.offer-none { border-left-color: var(--upds-line-strong); background: rgba(24, 29, 45, 0.55); }
+.offer-head { align-items: center; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; justify-content: space-between; }
+.offer-state { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.offer-ok .offer-state { color: #70e0d2; }
+.offer-forming .offer-state { color: #8fe3b6; }
+.offer-pending .offer-state { color: #f4ca63; }
+.offer-waiting .offer-state { color: #9dbcff; }
+.offer-none .offer-state { color: var(--upds-muted); }
+.offer-select { align-items: center; background: rgba(81, 200, 187, 0.12); border: 1px solid rgba(81, 200, 187, 0.3); border-radius: 8px; color: #70e0d2; cursor: pointer; display: inline-flex; font-size: 0.8rem; font-weight: 700; gap: 0.45rem; margin: 0; padding: 0.4rem 0.8rem; transition: background 160ms ease; }
+.offer-select input { accent-color: var(--upds-teal); display: inline-block; height: 1rem; margin: 0; padding: 0; width: 1rem; }
+.offer-select:has(input:checked) { background: var(--upds-teal); border-color: var(--upds-teal); color: #0d101b; }
+.offer-title { font-size: 1.05rem; letter-spacing: -0.02em; margin: 0.5rem 0 0.3rem; }
+.offer-title small { color: var(--upds-muted); font-size: 0.76rem; font-weight: 500; margin-left: 0.35rem; }
+.offer-key { color: #d4d9e6; font-size: 0.86rem; line-height: 1.5; margin: 0 0 0.4rem; }
+.offer-seats { font-weight: 700; }
+.offer-seats.is-low { color: #f4ca63; }
+.offer-details summary { color: var(--upds-teal); cursor: pointer; font-size: 0.78rem; font-weight: 700; }
+.offer-details[open] summary { margin-bottom: 0.55rem; }
+.offer-groups { border-collapse: collapse; font-size: 0.8rem; margin: 0 0 0.6rem; min-width: 0; width: 100%; }
+.offer-groups th, .offer-groups td { border-bottom: 1px solid var(--upds-line); padding: 0.45rem 0.5rem; }
+.offer-groups th { font-size: 0.62rem; }
+.offer-groups td { font-size: 0.8rem; }
+.offer-hint { color: var(--upds-muted); font-size: 0.78rem; line-height: 1.5; margin: 0.3rem 0 0; }
+.offer-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.65rem; }
+.offer-actions button, button.small { font-size: 0.76rem; margin-top: 0; padding: 0.5rem 0.8rem; }
+.offer-submit { align-items: center; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+@media (max-width: 600px) {
+    .offer-groups thead { display: none; }
+    .offer-groups tr { display: grid; gap: 0.15rem; padding: 0.5rem 0; }
+    .offer-groups td { border: 0; padding: 0; }
+}
+/* Reportes: las tablas dentro de las columnas del reporte no deben heredar el min-width global de 720px. */
+.report-columns table { min-width: 0; }
+.report-columns th, .report-columns td { padding: 0.55rem 0.5rem; }
+.report-columns h3 { color: #d7dced; }

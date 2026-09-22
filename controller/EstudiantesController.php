@@ -100,8 +100,8 @@ final class EstudiantesController
         if ($careerId === false || $careerId < 1 || !$this->model->careerExists((int) $careerId)) {
             $errors[] = 'Seleccione una carrera válida.';
         }
-        if ($semester === false || $semester < 1 || $semester > 20) {
-            $errors[] = 'El semestre debe estar entre 1 y 20.';
+        if ($semester === false || $semester < 1 || $semester > 10) {
+            $errors[] = 'El semestre debe estar entre 1 y 10.';
         }
         $registrationError = validation_code($data['registro_universitario'], 'registro universitario', 30);
         if ($registrationError !== null) {

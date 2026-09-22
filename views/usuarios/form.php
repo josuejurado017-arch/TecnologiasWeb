@@ -37,7 +37,7 @@ require __DIR__ . '/../layouts/header.php';
                 </div>
                 <div>
                     <label for="carnet_identidad">Carnet de Identidad (CI)</label>
-                    <input id="carnet_identidad" name="carnet_identidad" type="text" maxlength="20" <?= $isEditing ? '' : 'required' ?> title="Numero de carnet; complemento o extension opcional (ej. 1234567 LP)." value="<?= e($data['carnet_identidad'] ?? '') ?>">
+                    <input id="carnet_identidad" name="carnet_identidad" type="text" maxlength="20" pattern="[0-9]{4,10}(?:[ -]?[0-9A-Za-z]{1,3}){0,2}" <?= $isEditing ? '' : 'required' ?> title="Numero de carnet; complemento o extension opcional (ej. 1234567 LP)." value="<?= e($data['carnet_identidad'] ?? '') ?>">
                 </div>
                 <div>
                     <label for="correo">Correo</label>
@@ -97,7 +97,7 @@ require __DIR__ . '/../layouts/header.php';
                         </div>
                         <div>
                             <label for="semestre">Semestre</label>
-                            <input id="semestre" name="semestre" type="number" min="1" max="20" required disabled value="<?= e($data['semestre'] ?? '') ?>">
+                            <input id="semestre" name="semestre" type="number" min="1" max="10" required disabled value="<?= e($data['semestre'] ?? '') ?>">
                         </div>
                         <div>
                             <label for="registro_universitario">Registro Universitario (opcional)</label>

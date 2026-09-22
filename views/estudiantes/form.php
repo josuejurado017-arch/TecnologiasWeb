@@ -36,7 +36,7 @@ require __DIR__ . '/../layouts/header.php';
                 </div>
                 <div>
                     <label for="semestre">Semestre</label>
-                    <input id="semestre" name="semestre" type="number" min="1" max="20" required value="<?= e($data['semestre'] ?? '') ?>">
+                    <input id="semestre" name="semestre" type="number" min="1" max="10" required value="<?= e($data['semestre'] ?? '') ?>">
                 </div>
                 <div>
                     <label for="registro_universitario">Registro universitario</label>

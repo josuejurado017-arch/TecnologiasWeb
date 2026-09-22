@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 final class AuthController
 {
+    private const MAX_FAILED_ATTEMPTS = 5;
+    private const LOCKOUT_MINUTES = 15;
+
     public function login(string $username, string $password): ?string
     {
         $username = trim($username);
@@ -15,6 +18,10 @@ final class AuthController
         try {
             $model = new Usuario();
             $user = $model->findForLogin($username);
+
+            if ($user && $model->recentFailedAttempts((int) $user['id_usuario'], self::LOCKOUT_MINUTES) >= self::MAX_FAILED_ATTEMPTS) {
+                return 'Demasiados intentos fallidos. Intenta nuevamente en ' . self::LOCKOUT_MINUTES . ' minutos.';
+            }
 
             if (!$user || !password_verify($password, $user['contrasena_hash'])) {
                 if ($user) {

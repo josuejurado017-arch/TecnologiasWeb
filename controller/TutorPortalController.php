@@ -33,6 +33,8 @@ final class TutorPortalController
                 'modalidad' => null,
                 'disponible_sabados' => false,
                 'cupo_recomendado' => null,
+                'patron' => 'diario',
+                'patron_dia' => null,
                 'turnos' => [],
                 'sabados_franjas' => [],
                 'configured' => false,
@@ -74,11 +76,27 @@ final class TutorPortalController
             return 'Selecciona una modalidad válida.';
         }
 
+        // turnos[] = turnos que atiende en esta materia; los dias salen del patron.
         $turnosInput = isset($input['turnos']) && is_array($input['turnos']) ? $input['turnos'] : [];
         $turnos = array_values(array_unique(array_filter(
             $turnosInput,
             fn ($turno): bool => is_string($turno) && $this->config->isValidTurno($turno)
         )));
+
+        $patron = is_string($input['patron'] ?? null) ? $input['patron'] : '';
+        if (!$this->config->isValidPatron($patron)) {
+            return 'Selecciona un patrón semanal válido.';
+        }
+
+        // Solo el patron 'uno' necesita precisar el dia; en los demas se descarta.
+        $patronDia = null;
+        if ($patron === 'uno') {
+            $diaInput = is_string($input['patron_dia'] ?? null) ? $input['patron_dia'] : '';
+            if (!$this->config->isValidDia($diaInput)) {
+                return 'Elige el día de la semana para el patrón "Un día por semana".';
+            }
+            $patronDia = $diaInput;
+        }
 
         $disponibleSabados = !empty($input['disponible_sabados']);
         $franjasInput = isset($input['sabados_franjas']) && is_array($input['sabados_franjas']) ? $input['sabados_franjas'] : [];
@@ -88,7 +106,7 @@ final class TutorPortalController
         )));
 
         if (!$turnos && !($disponibleSabados && $franjas)) {
-            return 'Selecciona al menos un turno o una franja de sábado.';
+            return 'Selecciona al menos un turno, o una franja de sábado.';
         }
 
         $cupoRaw = $input['cupo_recomendado'] ?? '';
@@ -106,6 +124,8 @@ final class TutorPortalController
                 'modalidad' => $modalidad,
                 'disponible_sabados' => $disponibleSabados,
                 'cupo_recomendado' => $cupoRecomendado,
+                'patron' => $patron,
+                'patron_dia' => $patronDia,
                 'turnos' => $turnos,
                 'sabados_franjas' => $disponibleSabados ? $franjas : [],
             ]);
@@ -113,6 +133,9 @@ final class TutorPortalController
             error_log($exception->getMessage());
             return 'No fue posible guardar la configuración.';
         }
+
+        // Las preferencias cambian que bloques puede usar el motor para esta materia.
+        (new AsignacionController())->reprocesarMateria($materiaId);
 
         return null;
     }
@@ -137,6 +160,9 @@ final class TutorPortalController
         } catch (RuntimeException $exception) {
             return $exception->getMessage();
         }
+
+        // Tutor nuevo para la materia: los estudiantes "sin tutor" pueden recibir grupo ahora.
+        (new AsignacionController())->reprocesarMateria($subjectId);
 
         return null;
     }

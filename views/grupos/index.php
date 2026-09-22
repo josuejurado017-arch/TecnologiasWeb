@@ -29,7 +29,7 @@
                         <tr>
                             <td><?= e($g['nombre_materia']) ?></td>
                             <td><?= e($g['tutor']) ?></td>
-                            <td><?= e($g['dia_semana']) ?></td>
+                            <td><?= e($g['dias'] ?: $g['dia_semana']) ?></td>
                             <td><?= e(substr((string) $g['hora_inicio'], 0, 5)) ?> - <?= e(substr((string) $g['hora_fin'], 0, 5)) ?></td>
                             <td><?= e(ucfirst((string) $g['modalidad'])) ?></td>
                             <td><?= e($g['aula']) ?></td>
@@ -56,16 +56,24 @@
         </div>
 
         <h2 style="margin-top:2rem;">Demanda insatisfecha</h2>
-        <p class="panel-note">Materias solicitadas sin grupo disponible por falta de tutores u horarios compatibles.</p>
+        <p class="panel-note">Estudiantes en espera por materia y por qué. <strong>Sin tutor</strong>: nadie habilitado con horarios configurados para la materia (habilitar o reclutar tutor). <strong>Sin horario</strong>: hay tutor pero ningún turno/aula compatible (el tutor puede ampliar los turnos de la materia en Mis materias). <strong>Grupo cancelado</strong>: esperan reasignación. El sistema reintenta la asignación automáticamente cuando cambia la oferta.</p>
         <div class="table-wrapper card">
             <table>
-                <thead><tr><th>Materia</th><th>Solicitudes en espera</th></tr></thead>
+                <thead><tr><th>Materia</th><th>Carrera</th><th>En espera</th><th>Sin tutor</th><th>Sin horario</th><th>Grupo cancelado</th><th>Esperan desde</th></tr></thead>
                 <tbody>
                     <?php foreach ($demanda as $d): ?>
-                        <tr><td><?= e($d['nombre_materia']) ?></td><td><?= (int) $d['solicitudes'] ?></td></tr>
+                        <tr>
+                            <td><?= e($d['nombre_materia']) ?></td>
+                            <td><?= e($d['nombre_carrera'] ?? '—') ?></td>
+                            <td><strong><?= (int) $d['solicitudes'] ?></strong></td>
+                            <td><?php if ((int) $d['sin_tutor'] > 0): ?><span class="badge badge-danger"><?= (int) $d['sin_tutor'] ?></span><?php else: ?>—<?php endif; ?></td>
+                            <td><?php if ((int) $d['sin_horario'] > 0): ?><span class="badge badge-warning"><?= (int) $d['sin_horario'] ?></span><?php else: ?>—<?php endif; ?></td>
+                            <td><?php if ((int) $d['grupo_cancelado'] > 0): ?><span class="badge badge-info"><?= (int) $d['grupo_cancelado'] ?></span><?php else: ?>—<?php endif; ?></td>
+                            <td><?= e(date('d/m/Y', strtotime((string) $d['espera_desde']))) ?></td>
+                        </tr>
                     <?php endforeach; ?>
                     <?php if (!$demanda): ?>
-                        <tr><td colspan="2" class="empty-state">Sin demanda insatisfecha.</td></tr>
+                        <tr><td colspan="7" class="empty-state">Sin demanda insatisfecha.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

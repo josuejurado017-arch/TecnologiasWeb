@@ -74,7 +74,7 @@ final class AulasController
         $estado = (string) ($input['estado'] ?? 'activa');
 
         return [
-            'nombre' => trim((string) ($input['nombre'] ?? '')),
+            'nombre' => normalize_name((string) ($input['nombre'] ?? '')),
             'tipo' => $tipo,
             'capacidad' => $capacidad !== false ? $capacidad : 0,
             'ubicacion' => ($v = trim((string) ($input['ubicacion'] ?? ''))) === '' ? null : $v,

@@ -4,6 +4,9 @@
     <div class="page-heading"><div><h1>Mis materias</h1><p>Agrega las materias que puedes atender y configura tus preferencias de horario.</p></div></div>
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>
     <?php if (!empty($error)): ?><p class="alert" role="alert"><?= e($error) ?></p><?php endif; ?>
+    <?php if (!$hasSchedule): ?>
+        <p class="banner-warning" role="status">No podrás recibir grupos de tutoría hasta configurar los horarios (turnos y días) de al menos una de tus materias.</p>
+    <?php endif; ?>
 
     <section class="card form-card">
         <h2>Agregar materia</h2>
@@ -37,11 +40,17 @@
                     <?php
                         $config = $subject['config'];
                         $materiaId = (int) $subject['id_materia'];
-                        $turnoLabels = array_map(
-                            static fn (string $turno): string => TutorMateriaConfig::TURNOS[$turno]['label'] ?? $turno,
-                            $config['turnos']
-                        );
-                        $resumenPartes = $turnoLabels;
+                        $resumenPartes = [];
+                        if ($config['turnos']) {
+                            $turnosLabels = array_map(
+                                static fn (string $t): string => TutorMateriaConfig::TURNOS[$t]['label'] ?? $t,
+                                $config['turnos']
+                            );
+                            $patronLabel = $config['patron'] === 'uno'
+                                ? ($config['patron_dia'] ?? 'Un día por semana')
+                                : (TutorMateriaConfig::PATRONES[$config['patron']]['label'] ?? $config['patron']);
+                            $resumenPartes[] = implode(' y ', $turnosLabels) . ' · ' . $patronLabel;
+                        }
                         if ($config['disponible_sabados']) {
                             $resumenPartes[] = 'Sábados';
                         }
@@ -66,13 +75,33 @@
                                     <input type="hidden" name="id_materia" value="<?= $materiaId ?>">
 
                                     <fieldset>
-                                        <legend>Turnos preferidos (lunes a viernes)</legend>
+                                        <legend>Turnos</legend>
+                                        <p class="form-hint">Marca los turnos en los que puedes atender esta materia.</p>
                                         <?php foreach (TutorMateriaConfig::TURNOS as $key => $turno): ?>
                                             <label class="checkbox-option">
                                                 <input type="checkbox" name="turnos[]" value="<?= e($key) ?>" <?= in_array($key, $config['turnos'], true) ? 'checked' : '' ?>>
                                                 <?= e($turno['label']) ?> (<?= e(substr($turno['inicio'], 0, 5)) ?> - <?= e(substr($turno['fin'], 0, 5)) ?>)
                                             </label>
                                         <?php endforeach; ?>
+                                    </fieldset>
+
+                                    <fieldset>
+                                        <legend>Patrón semanal</legend>
+                                        <p class="form-hint">Los turnos marcados aplican a estos días. El sábado se configura aparte.</p>
+                                        <?php foreach (TutorMateriaConfig::PATRONES as $key => $patron): ?>
+                                            <label class="checkbox-option">
+                                                <input type="radio" name="patron" value="<?= e($key) ?>" <?= ($config['patron'] ?? 'diario') === $key ? 'checked' : '' ?> data-patron required>
+                                                <?= e($patron['label']) ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                        <div data-patron-dia<?= ($config['patron'] ?? 'diario') === 'uno' ? '' : ' hidden' ?>>
+                                            <label for="patron_dia_<?= $materiaId ?>">¿Qué día?</label>
+                                            <select id="patron_dia_<?= $materiaId ?>" name="patron_dia">
+                                                <?php foreach (TutorMateriaConfig::DIAS_HABILES as $dia): ?>
+                                                    <option value="<?= e($dia) ?>" <?= ($config['patron_dia'] ?? '') === $dia ? 'selected' : '' ?>><?= e($dia) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
                                     </fieldset>
 
                                     <fieldset>

@@ -572,6 +572,25 @@ tbody tr:hover {
     color: #9a6417;
 }
 
+.banner-warning {
+    background: #fff2d9;
+    color: #9a6417;
+    border-radius: 9px;
+    font-size: 0.84rem;
+    margin: 0 0 1.25rem;
+    padding: 0.8rem 0.9rem;
+}
+
+.banner-warning a {
+    color: #9a6417;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.report-warning {
+    color: #9a6417;
+}
+
 details > summary {
     color: var(--accent-dark);
     cursor: pointer;
@@ -607,6 +626,29 @@ details > summary {
     font-weight: 400;
     gap: 0.45rem;
     margin-bottom: 0.35rem;
+}
+
+.turno-group {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    padding: 0.4rem 0;
+}
+
+.turno-group:last-child {
+    border-bottom: none;
+}
+
+.turno-group-title {
+    flex: 0 0 100%;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.turno-group .checkbox-option {
+    margin-bottom: 0;
 }
 
 .checkbox-option input {

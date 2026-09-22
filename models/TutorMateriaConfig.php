@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Preferencias academicas del tutor por materia (Fase 1: capa de filtro sobre
- * disponibilidad_tutor, no la reemplaza). Ver db/020_tutor_materia_preferencias.sql.
+ * Horarios del tutor por materia (turnos + patron semanal, franjas de sabado,
+ * modalidad, cupo). Es la UNICA fuente de horarios del motor de asignacion: la
+ * antigua disponibilidad_tutor global quedo obsoleta (db/025_horarios_por_materia.sql).
+ * Los dias salen de un patron semanal por materia, no de una matriz turno x dia
+ * (db/026_tutor_materia_patron.sql).
  */
 final class TutorMateriaConfig
 {
@@ -15,6 +18,19 @@ final class TutorMateriaConfig
         'Noche' => ['label' => 'Noche', 'inicio' => '19:00:00', 'fin' => '22:00:00'],
     ];
 
+    /**
+     * Patrones semanales ofrecidos al tutor. El sabado no aparece aqui a proposito:
+     * tiene franjas propias que no coinciden con los rangos de turno, asi que se
+     * sigue configurando aparte (tutor_materia_sabado). 'uno' es el unico que
+     * necesita precisar el dia (columna patron_dia).
+     */
+    public const PATRONES = [
+        'lmv' => ['label' => 'Lunes, miércoles y viernes', 'dias' => ['Lunes', 'Miercoles', 'Viernes']],
+        'mj' => ['label' => 'Martes y jueves', 'dias' => ['Martes', 'Jueves']],
+        'diario' => ['label' => 'Todos los días (lunes a viernes)', 'dias' => ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']],
+        'uno' => ['label' => 'Un día por semana', 'dias' => []],
+    ];
+
     public const FRANJAS_SABADO = [
         '08:00-10:00' => ['inicio' => '08:00:00', 'fin' => '10:00:00'],
         '10:00-12:00' => ['inicio' => '10:00:00', 'fin' => '12:00:00'],
@@ -23,11 +39,58 @@ final class TutorMateriaConfig
 
     public const CUPOS_RECOMENDADOS = [10, 15, 20, 25];
 
-    private const DIAS_HABILES = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
+    public const DIAS_HABILES = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 
     public function isValidTurno(string $turno): bool
     {
         return isset(self::TURNOS[$turno]);
+    }
+
+    public function isValidPatron(string $patron): bool
+    {
+        return isset(self::PATRONES[$patron]);
+    }
+
+    /** Dias habiles que implica un patron. 'uno' depende del dia que eligio el tutor. */
+    public function diasDePatron(string $patron, ?string $patronDia): array
+    {
+        if ($patron === 'uno') {
+            return $patronDia !== null && $this->isValidDia($patronDia) ? [$patronDia] : [];
+        }
+
+        return self::PATRONES[$patron]['dias'] ?? [];
+    }
+
+    /**
+     * Ventanas (dia + rango horario) que declara una configuracion: producto del
+     * patron por los turnos elegidos, mas las franjas de sabado si aplica.
+     */
+    public function ventanas(string $patron, ?string $patronDia, array $turnos, bool $disponibleSabados, array $franjas): array
+    {
+        $dias = $this->diasDePatron($patron, $patronDia);
+        $ventanas = [];
+
+        foreach ($turnos as $turno) {
+            $rango = self::TURNOS[$turno] ?? null;
+            if ($rango === null) {
+                continue;
+            }
+            foreach ($dias as $dia) {
+                $ventanas[] = ['dia_semana' => $dia, 'hora_inicio' => $rango['inicio'], 'hora_fin' => $rango['fin']];
+            }
+        }
+
+        if ($disponibleSabados) {
+            foreach ($franjas as $franja) {
+                $rango = self::FRANJAS_SABADO[$franja] ?? null;
+                if ($rango === null) {
+                    continue;
+                }
+                $ventanas[] = ['dia_semana' => 'Sabado', 'hora_inicio' => $rango['inicio'], 'hora_fin' => $rango['fin']];
+            }
+        }
+
+        return $ventanas;
     }
 
     public function isValidFranja(string $franja): bool
@@ -35,11 +98,16 @@ final class TutorMateriaConfig
         return isset(self::FRANJAS_SABADO[$franja]);
     }
 
+    public function isValidDia(string $dia): bool
+    {
+        return in_array($dia, self::DIAS_HABILES, true);
+    }
+
     /** Configuracion completa de un tutor para una materia, para precargar el formulario de edicion. */
     public function find(int $tutorId, int $materiaId): ?array
     {
         $statement = Database::connection()->prepare(
-            'SELECT modalidad, disponible_sabados, cupo_recomendado FROM tutor_materia_config WHERE id_tutor = :id_tutor AND id_materia = :id_materia LIMIT 1'
+            'SELECT modalidad, patron, patron_dia, disponible_sabados, cupo_recomendado FROM tutor_materia_config WHERE id_tutor = :id_tutor AND id_materia = :id_materia LIMIT 1'
         );
         $statement->execute(['id_tutor' => $tutorId, 'id_materia' => $materiaId]);
         $config = $statement->fetch();
@@ -53,10 +121,12 @@ final class TutorMateriaConfig
         return $config;
     }
 
+    /** Turnos configurados para una materia: ['Manana', 'Tarde']. */
     public function turnos(int $tutorId, int $materiaId): array
     {
         $statement = Database::connection()->prepare(
-            'SELECT turno FROM tutor_materia_turno WHERE id_tutor = :id_tutor AND id_materia = :id_materia ORDER BY turno'
+            'SELECT turno FROM tutor_materia_turno WHERE id_tutor = :id_tutor AND id_materia = :id_materia
+             ORDER BY FIELD(turno, \'Manana\', \'Mediodia\', \'Tarde\', \'Noche\')'
         );
         $statement->execute(['id_tutor' => $tutorId, 'id_materia' => $materiaId]);
 
@@ -80,7 +150,7 @@ final class TutorMateriaConfig
     public function summaryForTutor(int $tutorId): array
     {
         $statement = Database::connection()->prepare(
-            'SELECT id_materia, modalidad, disponible_sabados, cupo_recomendado FROM tutor_materia_config WHERE id_tutor = :id_tutor'
+            'SELECT id_materia, modalidad, patron, patron_dia, disponible_sabados, cupo_recomendado FROM tutor_materia_config WHERE id_tutor = :id_tutor'
         );
         $statement->execute(['id_tutor' => $tutorId]);
         $configs = $statement->fetchAll();
@@ -89,7 +159,8 @@ final class TutorMateriaConfig
         }
 
         $turnosStatement = Database::connection()->prepare(
-            'SELECT id_materia, turno FROM tutor_materia_turno WHERE id_tutor = :id_tutor ORDER BY turno'
+            'SELECT id_materia, turno FROM tutor_materia_turno WHERE id_tutor = :id_tutor
+             ORDER BY FIELD(turno, \'Manana\', \'Mediodia\', \'Tarde\', \'Noche\')'
         );
         $turnosStatement->execute(['id_tutor' => $tutorId]);
         $turnosByMateria = [];
@@ -115,6 +186,8 @@ final class TutorMateriaConfig
 
             $summary[$materiaId] = [
                 'modalidad' => $config['modalidad'],
+                'patron' => $config['patron'],
+                'patron_dia' => $config['patron_dia'],
                 'disponible_sabados' => $disponibleSabados,
                 'cupo_recomendado' => $config['cupo_recomendado'] !== null ? (int) $config['cupo_recomendado'] : null,
                 'turnos' => $turnos,
@@ -133,14 +206,17 @@ final class TutorMateriaConfig
         $connection->beginTransaction();
         try {
             $statement = $connection->prepare(
-                'INSERT INTO tutor_materia_config (id_tutor, id_materia, modalidad, disponible_sabados, cupo_recomendado)
-                 VALUES (:id_tutor, :id_materia, :modalidad, :disponible_sabados, :cupo_recomendado)
-                 ON DUPLICATE KEY UPDATE modalidad = VALUES(modalidad), disponible_sabados = VALUES(disponible_sabados), cupo_recomendado = VALUES(cupo_recomendado)'
+                'INSERT INTO tutor_materia_config (id_tutor, id_materia, modalidad, patron, patron_dia, disponible_sabados, cupo_recomendado)
+                 VALUES (:id_tutor, :id_materia, :modalidad, :patron, :patron_dia, :disponible_sabados, :cupo_recomendado)
+                 ON DUPLICATE KEY UPDATE modalidad = VALUES(modalidad), patron = VALUES(patron), patron_dia = VALUES(patron_dia),
+                 disponible_sabados = VALUES(disponible_sabados), cupo_recomendado = VALUES(cupo_recomendado)'
             );
             $statement->execute([
                 'id_tutor' => $tutorId,
                 'id_materia' => $materiaId,
                 'modalidad' => $data['modalidad'],
+                'patron' => $data['patron'],
+                'patron_dia' => $data['patron_dia'],
                 'disponible_sabados' => $data['disponible_sabados'] ? 1 : 0,
                 'cupo_recomendado' => $data['cupo_recomendado'],
             ]);
@@ -179,13 +255,18 @@ final class TutorMateriaConfig
     }
 
     /**
-     * Preferencias de todos los tutores configurados para una materia, indexadas por id_tutor.
-     * Un tutor SIN fila aqui no aparece: el motor debe tratarlo como sin restriccion.
+     * Horarios de todos los tutores activos configurados para una materia, indexados
+     * por id_tutor. Un tutor sin configuracion para la materia no aparece: no ofrece
+     * horarios para ella.
      */
     public function preferencesForMatter(int $materiaId): array
     {
         $statement = Database::connection()->prepare(
-            'SELECT id_tutor, modalidad, disponible_sabados, cupo_recomendado FROM tutor_materia_config WHERE id_materia = :id_materia'
+            "SELECT c.id_tutor, c.modalidad, c.patron, c.patron_dia, c.disponible_sabados, c.cupo_recomendado
+             FROM tutor_materia_config c
+             INNER JOIN tutores t ON t.id_tutor = c.id_tutor
+             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+             WHERE c.id_materia = :id_materia"
         );
         $statement->execute(['id_materia' => $materiaId]);
         $configs = $statement->fetchAll();
@@ -214,31 +295,16 @@ final class TutorMateriaConfig
         $preferences = [];
         foreach ($configs as $config) {
             $tutorId = (int) $config['id_tutor'];
-            $ventanas = [];
-
-            foreach ($turnosByTutor[$tutorId] ?? [] as $turno) {
-                $rango = self::TURNOS[$turno] ?? null;
-                if ($rango === null) {
-                    continue;
-                }
-                foreach (self::DIAS_HABILES as $dia) {
-                    $ventanas[] = ['dia_semana' => $dia, 'hora_inicio' => $rango['inicio'], 'hora_fin' => $rango['fin']];
-                }
-            }
-
-            if ((int) $config['disponible_sabados'] === 1) {
-                foreach ($franjasByTutor[$tutorId] ?? [] as $franja) {
-                    $rango = self::FRANJAS_SABADO[$franja] ?? null;
-                    if ($rango === null) {
-                        continue;
-                    }
-                    $ventanas[] = ['dia_semana' => 'Sabado', 'hora_inicio' => $rango['inicio'], 'hora_fin' => $rango['fin']];
-                }
-            }
+            $ventanas = $this->ventanas(
+                $config['patron'],
+                $config['patron_dia'],
+                $turnosByTutor[$tutorId] ?? [],
+                (int) $config['disponible_sabados'] === 1,
+                $franjasByTutor[$tutorId] ?? []
+            );
 
             if (!$ventanas) {
-                // Configuracion incompleta (no deberia ocurrir via save(), pero por
-                // seguridad no se restringe nada si no hay ventanas declaradas).
+                // Configuracion incompleta (no deberia ocurrir via save()): sin horarios.
                 continue;
             }
 
@@ -253,44 +319,83 @@ final class TutorMateriaConfig
     }
 
     /**
-     * Cruza los bloques reales de disponibilidad (rawSlots, como los devuelve
-     * Grupo::availabilityForMatter) con las preferencias por materia. Un tutor sin
-     * preferencia se devuelve intacto (retrocompatibilidad). Con preferencia, se
-     * intersectan los rangos horarios: nunca se amplia mas alla de la disponibilidad
-     * real del tutor ni del turno/franja que declaro para esa materia.
+     * Bloques semanales que el motor puede usar para crear grupos de una materia:
+     * una fila por (tutor, dia, turno/franja) con la modalidad y cupo que el tutor
+     * declaro para esa materia.
      */
-    public function expandSlots(array $rawSlots, array $preferences): array
+    public function slotsForMatter(int $materiaId): array
     {
-        $expanded = [];
-        foreach ($rawSlots as $slot) {
-            $tutorId = (int) $slot['id_tutor'];
-            $preference = $preferences[$tutorId] ?? null;
-
-            if ($preference === null) {
-                $expanded[] = $slot + ['modalidad_preferida' => null, 'cupo_recomendado' => null];
-                continue;
-            }
-
+        $slots = [];
+        foreach ($this->preferencesForMatter($materiaId) as $tutorId => $preference) {
             foreach ($preference['ventanas'] as $ventana) {
-                if ($ventana['dia_semana'] !== $slot['dia_semana']) {
-                    continue;
-                }
-                $inicio = max($slot['hora_inicio'], $ventana['hora_inicio']);
-                $fin = min($slot['hora_fin'], $ventana['hora_fin']);
-                if ($inicio >= $fin) {
-                    continue;
-                }
-                $expanded[] = [
+                $slots[] = [
                     'id_tutor' => $tutorId,
-                    'dia_semana' => $slot['dia_semana'],
-                    'hora_inicio' => $inicio,
-                    'hora_fin' => $fin,
+                    'dia_semana' => $ventana['dia_semana'],
+                    'hora_inicio' => $ventana['hora_inicio'],
+                    'hora_fin' => $ventana['hora_fin'],
                     'modalidad_preferida' => $preference['modalidad'],
                     'cupo_recomendado' => $preference['cupo_recomendado'],
                 ];
             }
         }
 
-        return $expanded;
+        return $slots;
+    }
+
+    /**
+     * Condicion SQL "la materia tm.id_materia tiene horarios configurados por tm.id_tutor"
+     * (misma regla que preferencesForMatter/summaryForTutor). $alias es el alias de
+     * tutor_materia en la consulta que la usa.
+     */
+    public static function sqlMateriaConfigurada(string $alias = 'tm'): string
+    {
+        return "(EXISTS (SELECT 1 FROM tutor_materia_turno tmt
+                     WHERE tmt.id_tutor = {$alias}.id_tutor AND tmt.id_materia = {$alias}.id_materia)
+                 OR EXISTS (SELECT 1 FROM tutor_materia_config tmc
+                     INNER JOIN tutor_materia_sabado tms ON tms.id_tutor = tmc.id_tutor AND tms.id_materia = tmc.id_materia
+                     WHERE tmc.id_tutor = {$alias}.id_tutor AND tmc.id_materia = {$alias}.id_materia AND tmc.disponible_sabados = 1))";
+    }
+
+    /**
+     * Tutores activos con cuantas de sus materias tienen horarios configurados, para la
+     * supervision del administrador. Los que no pueden recibir grupos (ninguna materia
+     * configurada) aparecen primero.
+     */
+    public function coverageByTutor(): array
+    {
+        $configurada = self::sqlMateriaConfigurada('tm');
+        $rows = Database::connection()->query(
+            "SELECT t.id_tutor, CONCAT(u.nombre, ' ', u.apellido) AS tutor,
+                    COUNT(tm.id_materia) AS materias,
+                    COALESCE(SUM(CASE WHEN tm.id_materia IS NOT NULL AND {$configurada} THEN 1 ELSE 0 END), 0) AS configuradas
+             FROM tutores t
+             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+             LEFT JOIN tutor_materia tm ON tm.id_tutor = t.id_tutor
+             GROUP BY t.id_tutor, u.nombre, u.apellido
+             ORDER BY u.apellido, u.nombre"
+        )->fetchAll();
+
+        $coverage = array_map(static fn (array $row): array => [
+            'id_tutor' => (int) $row['id_tutor'],
+            'tutor' => $row['tutor'],
+            'materias' => (int) $row['materias'],
+            'configuradas' => (int) $row['configuradas'],
+        ], $rows);
+        // usort es estable: conserva el orden alfabetico dentro de cada grupo.
+        usort($coverage, static fn (array $a, array $b): int => ($a['configuradas'] > 0) <=> ($b['configuradas'] > 0));
+
+        return $coverage;
+    }
+
+    /** Tutores activos sin ninguna materia con horarios configurados: no pueden recibir grupos. */
+    public function countTutorsWithoutSchedule(): int
+    {
+        $configurada = self::sqlMateriaConfigurada('tm');
+
+        return (int) Database::connection()->query(
+            "SELECT COUNT(*) FROM tutores t
+             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+             WHERE NOT EXISTS (SELECT 1 FROM tutor_materia tm WHERE tm.id_tutor = t.id_tutor AND {$configurada})"
+        )->fetchColumn();
     }
 }

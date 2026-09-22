@@ -91,6 +91,22 @@ document.addEventListener('DOMContentLoaded', () => {
         sync();
     });
 
+    // El selector de dia solo aplica al patron "un dia por semana".
+    document.querySelectorAll('[data-patron-dia]').forEach((panel) => {
+        const form = panel.closest('form');
+        const opciones = form?.querySelectorAll('[data-patron]');
+        if (!opciones || !opciones.length) {
+            return;
+        }
+
+        const sync = () => {
+            panel.hidden = form.querySelector('[data-patron]:checked')?.value !== 'uno';
+        };
+
+        opciones.forEach((opcion) => opcion.addEventListener('change', sync));
+        sync();
+    });
+
     document.querySelectorAll('[data-time-end]').forEach((end) => {
         const form = end.form;
         const start = form?.querySelector('[data-time-start]');

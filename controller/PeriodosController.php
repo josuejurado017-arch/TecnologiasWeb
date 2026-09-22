@@ -87,7 +87,7 @@ final class PeriodosController
         $estado = (string) ($input['estado'] ?? 'borrador');
 
         return [
-            'nombre' => trim((string) ($input['nombre'] ?? '')),
+            'nombre' => normalize_name((string) ($input['nombre'] ?? '')),
             'fecha_inicio' => trim((string) ($input['fecha_inicio'] ?? '')),
             'fecha_fin' => trim((string) ($input['fecha_fin'] ?? '')),
             'cupo_min_grupo' => $minGroup !== false ? $minGroup : 3,

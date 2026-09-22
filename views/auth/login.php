@@ -31,6 +31,7 @@ require __DIR__ . '/../layouts/header.php';
             <?php if (!empty($success)): ?><p class="success" role="status"><?= e($success) ?></p><?php endif; ?>
 
             <form method="post" action="<?= e(app_url('login.php')) ?>">
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <label for="usuario">Usuario</label>
                 <input id="usuario" name="usuario" type="text" minlength="4" maxlength="50" pattern="[A-Za-z0-9._-]{4,50}" required autocomplete="username" value="<?= e($username ?? '') ?>">
 

@@ -16,13 +16,17 @@ final class Grupo
             "SELECT g.id_grupo, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad,
                     g.cupo_max, g.cupo_ocupado, g.estado,
                     m.nombre_materia, a.nombre AS aula,
-                    CONCAT(u.nombre, ' ', u.apellido) AS tutor
+                    CONCAT(u.nombre, ' ', u.apellido) AS tutor,
+                    GROUP_CONCAT(gd.dia_semana ORDER BY FIELD(gd.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado') SEPARATOR '/') AS dias
              FROM grupos_tutoria g
              INNER JOIN materias m ON m.id_materia = g.id_materia
              INNER JOIN aulas a ON a.id_aula = g.id_aula
              INNER JOIN tutores t ON t.id_tutor = g.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             LEFT JOIN grupo_dias gd ON gd.id_grupo = g.id_grupo
              WHERE g.id_periodo = :id_periodo
+             GROUP BY g.id_grupo, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad,
+                      g.cupo_max, g.cupo_ocupado, g.estado, m.nombre_materia, a.nombre, tutor
              ORDER BY m.nombre_materia, FIELD(g.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'), g.hora_inicio"
         );
         $statement->execute(['id_periodo' => $periodoId]);
@@ -35,11 +39,15 @@ final class Grupo
     {
         $statement = Database::connection()->prepare(
             "SELECT g.id_grupo, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad,
-                    g.cupo_max, g.cupo_ocupado, g.estado, m.nombre_materia, a.nombre AS aula
+                    g.cupo_max, g.cupo_ocupado, g.estado, m.nombre_materia, a.nombre AS aula,
+                    GROUP_CONCAT(gd.dia_semana ORDER BY FIELD(gd.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado') SEPARATOR '/') AS dias
              FROM grupos_tutoria g
              INNER JOIN materias m ON m.id_materia = g.id_materia
              INNER JOIN aulas a ON a.id_aula = g.id_aula
+             LEFT JOIN grupo_dias gd ON gd.id_grupo = g.id_grupo
              WHERE g.id_tutor = :id_tutor AND g.id_periodo = :id_periodo
+             GROUP BY g.id_grupo, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad,
+                      g.cupo_max, g.cupo_ocupado, g.estado, m.nombre_materia, a.nombre
              ORDER BY FIELD(g.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'), g.hora_inicio"
         );
         $statement->execute(['id_tutor' => $tutorId, 'id_periodo' => $periodoId]);
@@ -64,40 +72,42 @@ final class Grupo
     }
 
     /**
-     * Bloques de disponibilidad de tutores habilitados para una materia,
-     * que aun NO tienen un grupo del mismo tutor solapado en la campana.
+     * Conflicto de horario del tutor con otro grupo de la misma campana, en
+     * cualquiera de los dias del patron (rango solapado). Un patron de varios
+     * dias solo es viable si NINGUNO de sus dias choca.
      */
-    public function availabilityForMatter(int $periodoId, int $matterId): array
+    public function tutorHasConflict(int $tutorId, array $dias, string $horaInicio, string $horaFin, int $periodoId): bool
     {
-        $statement = Database::connection()->prepare(
-            "SELECT t.id_tutor, d.dia_semana, d.hora_inicio, d.hora_fin
-             FROM tutor_materia tm
-             INNER JOIN tutores t ON t.id_tutor = tm.id_tutor
-             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
-             INNER JOIN disponibilidad_tutor d ON d.id_tutor = t.id_tutor
-             WHERE tm.id_materia = :id_materia
-             ORDER BY d.dia_semana, d.hora_inicio"
-        );
-        $statement->execute(['id_materia' => $matterId]);
+        if (!$dias) {
+            return false;
+        }
+        [$placeholders, $params] = $this->diaPlaceholders($dias);
+        $params += ['id_tutor' => $tutorId, 'id_periodo' => $periodoId, 'hora_fin' => $horaFin, 'hora_inicio' => $horaInicio];
 
-        return $statement->fetchAll();
-    }
-
-    /** Conflicto de horario del tutor con otro grupo de la misma campana (mismo dia, rango solapado). */
-    public function tutorHasConflict(int $tutorId, string $dia, string $horaInicio, string $horaFin, int $periodoId): bool
-    {
         $statement = Database::connection()->prepare(
-            "SELECT 1 FROM grupos_tutoria
-             WHERE id_tutor = :id_tutor AND id_periodo = :id_periodo AND dia_semana = :dia
-               AND estado <> 'cancelado' AND hora_inicio < :hora_fin AND hora_fin > :hora_inicio
+            "SELECT 1 FROM grupos_tutoria g
+             INNER JOIN grupo_dias gd ON gd.id_grupo = g.id_grupo
+             WHERE g.id_tutor = :id_tutor AND g.id_periodo = :id_periodo AND gd.dia_semana IN ({$placeholders})
+               AND g.estado <> 'cancelado' AND g.hora_inicio < :hora_fin AND g.hora_fin > :hora_inicio
              LIMIT 1"
         );
-        $statement->execute([
-            'id_tutor' => $tutorId, 'id_periodo' => $periodoId, 'dia' => $dia,
-            'hora_fin' => $horaFin, 'hora_inicio' => $horaInicio,
-        ]);
+        $statement->execute($params);
 
         return (bool) $statement->fetchColumn();
+    }
+
+    /** Placeholders nombrados para un IN (...) dinamico sobre una lista de dias. */
+    private function diaPlaceholders(array $dias): array
+    {
+        $placeholders = [];
+        $params = [];
+        foreach (array_values($dias) as $i => $dia) {
+            $key = 'dia' . $i;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $dia;
+        }
+
+        return [implode(',', $placeholders), $params];
     }
 
     /** Conflicto de reserva del aula (mismo dia, rango solapado) en la campana. */
@@ -118,13 +128,20 @@ final class Grupo
     }
 
     /**
-     * Aula libre para un bloque, priorizando capacidad ajustada; devuelve la fila o null.
+     * Aula libre para un bloque en TODOS los dias del patron (priorizando capacidad
+     * ajustada); devuelve la fila o null. Un aula que solo esta libre en algunos de
+     * los dias del patron no sirve: el grupo necesita el mismo aula todos sus dias.
      * $modalidadPreferida (preferencia del tutor para la materia, ver TutorMateriaConfig):
      * 'presencial' o 'virtual' restringen el tipo de aula; 'ambas' o null no filtran
      * (comportamiento actual, retrocompatible con tutores sin preferencia configurada).
      */
-    public function findFreeAula(string $dia, string $horaInicio, string $horaFin, int $periodoId, ?string $modalidadPreferida = null): ?array
+    public function findFreeAula(array $dias, string $horaInicio, string $horaFin, int $periodoId, ?string $modalidadPreferida = null): ?array
     {
+        if (!$dias) {
+            return null;
+        }
+        [$placeholders, $params] = $this->diaPlaceholders($dias);
+
         $sql = "SELECT a.id_aula, a.tipo, a.capacidad
              FROM aulas a
              WHERE a.estado = 'activa'";
@@ -136,36 +153,69 @@ final class Grupo
         $sql .= "
                AND NOT EXISTS (
                    SELECT 1 FROM grupos_tutoria g
-                   WHERE g.id_aula = a.id_aula AND g.id_periodo = :id_periodo AND g.dia_semana = :dia
+                   INNER JOIN grupo_dias gd ON gd.id_grupo = g.id_grupo
+                   WHERE g.id_aula = a.id_aula AND g.id_periodo = :id_periodo AND gd.dia_semana IN ({$placeholders})
                      AND g.estado <> 'cancelado' AND g.hora_inicio < :hora_fin AND g.hora_fin > :hora_inicio
                )
              ORDER BY a.capacidad ASC
              LIMIT 1";
 
+        $params += ['id_periodo' => $periodoId, 'hora_fin' => $horaFin, 'hora_inicio' => $horaInicio];
         $statement = Database::connection()->prepare($sql);
-        $statement->execute([
-            'id_periodo' => $periodoId, 'dia' => $dia,
-            'hora_fin' => $horaFin, 'hora_inicio' => $horaInicio,
-        ]);
+        $statement->execute($params);
         $aula = $statement->fetch();
 
         return $aula ?: null;
     }
 
-    /** Crea un grupo y devuelve su id. */
+    /**
+     * Crea un grupo y devuelve su id. $data['dias'] es el patron semanal completo
+     * (uno o varios dias); grupos_tutoria.dia_semana se queda con el primer dia del
+     * patron por retrocompatibilidad de listados/reportes que aun no leen grupo_dias
+     * (ver db/024_grupo_dias.sql), y grupo_dias guarda el patron completo.
+     */
     public function create(array $data): int
     {
-        $statement = Database::connection()->prepare(
+        $dias = array_values(array_unique($data['dias']));
+        $connection = Database::connection();
+        $statement = $connection->prepare(
             'INSERT INTO grupos_tutoria (id_periodo, id_materia, id_tutor, id_aula, modalidad, dia_semana, hora_inicio, hora_fin, cupo_max, cupo_ocupado, estado)
              VALUES (:id_periodo, :id_materia, :id_tutor, :id_aula, :modalidad, :dia_semana, :hora_inicio, :hora_fin, :cupo_max, 0, :estado)'
         );
-        $statement->execute($data);
+        $statement->execute([
+            'id_periodo' => $data['id_periodo'],
+            'id_materia' => $data['id_materia'],
+            'id_tutor' => $data['id_tutor'],
+            'id_aula' => $data['id_aula'],
+            'modalidad' => $data['modalidad'],
+            'dia_semana' => $dias[0],
+            'hora_inicio' => $data['hora_inicio'],
+            'hora_fin' => $data['hora_fin'],
+            'cupo_max' => $data['cupo_max'],
+            'estado' => $data['estado'],
+        ]);
+        $grupoId = (int) $connection->lastInsertId();
 
-        return (int) Database::connection()->lastInsertId();
+        $insertDia = $connection->prepare('INSERT INTO grupo_dias (id_grupo, dia_semana) VALUES (:id_grupo, :dia_semana)');
+        foreach ($dias as $dia) {
+            $insertDia->execute(['id_grupo' => $grupoId, 'dia_semana' => $dia]);
+        }
+
+        return $grupoId;
     }
 
-    /** Genera las sesiones semanales del grupo entre las fechas de la campana. */
-    public function generateSessions(int $grupoId, string $dia, string $fechaInicio, string $fechaFin): int
+    /** Genera las sesiones semanales del grupo entre las fechas de la campana, para cada dia del patron. */
+    public function generateSessions(int $grupoId, array $dias, string $fechaInicio, string $fechaFin): int
+    {
+        $count = 0;
+        foreach ($dias as $dia) {
+            $count += $this->generateSessionsForDay($grupoId, $dia, $fechaInicio, $fechaFin);
+        }
+
+        return $count;
+    }
+
+    private function generateSessionsForDay(int $grupoId, string $dia, string $fechaInicio, string $fechaFin): int
     {
         $target = self::DIAS[$dia] ?? null;
         if ($target === null) {
@@ -197,7 +247,7 @@ final class Grupo
     public function findBasic(int $grupoId): ?array
     {
         $statement = Database::connection()->prepare(
-            "SELECT g.id_grupo, g.id_periodo, g.id_materia, g.estado, m.nombre_materia
+            "SELECT g.id_grupo, g.id_periodo, g.id_materia, g.id_tutor, g.estado, m.nombre_materia
              FROM grupos_tutoria g INNER JOIN materias m ON m.id_materia = g.id_materia
              WHERE g.id_grupo = :id LIMIT 1"
         );
