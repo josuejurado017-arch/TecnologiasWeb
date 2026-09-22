@@ -95,6 +95,7 @@ $routes = [
     '/mis-materias' => '/php/tutor/mis_materias.php',
     '/tutor/mis_materias/agregar.php' => '/php/tutor/mis_materias/agregar.php',
     '/tutor/mis_materias/eliminar.php' => '/php/tutor/mis_materias/eliminar.php',
+    '/tutor/mis_materias/configurar.php' => '/php/tutor/mis_materias/configurar.php',
 ];
 
 if (isset($routes[$requestPath])) {

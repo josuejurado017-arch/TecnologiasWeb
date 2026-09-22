@@ -86,7 +86,7 @@ final class MateriasController
     private function validate(array $data, ?int $ignoreId): array
     {
         $errors = [];
-        $error = validation_text($data['nombre_materia'], 'nombre de la materia', 150);
+        $error = validation_label($data['nombre_materia'], 'nombre de la materia', 150);
         if ($error !== null) {
             $errors[] = $error;
         } elseif ($this->model->nameExists($data['nombre_materia'], $ignoreId)) {

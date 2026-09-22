@@ -50,6 +50,7 @@ require_once dirname(__DIR__) . '/models/Dashboard.php';
 require_once dirname(__DIR__) . '/models/Estudiante.php';
 require_once dirname(__DIR__) . '/models/Tutor.php';
 require_once dirname(__DIR__) . '/models/DisponibilidadTutor.php';
+require_once dirname(__DIR__) . '/models/TutorMateriaConfig.php';
 require_once dirname(__DIR__) . '/models/Tutoria.php';
 require_once dirname(__DIR__) . '/models/RegistroAcceso.php';
 require_once dirname(__DIR__) . '/models/Notificacion.php';

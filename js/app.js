@@ -77,6 +77,20 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmation.addEventListener('input', validatePasswords);
     });
 
+    document.querySelectorAll('[data-sabados-toggle]').forEach((toggle) => {
+        const panel = toggle.closest('form')?.querySelector('[data-sabados-panel]');
+        if (!panel) {
+            return;
+        }
+
+        const sync = () => {
+            panel.hidden = !toggle.checked;
+        };
+
+        toggle.addEventListener('change', sync);
+        sync();
+    });
+
     document.querySelectorAll('[data-time-end]').forEach((end) => {
         const form = end.form;
         const start = form?.querySelector('[data-time-start]');

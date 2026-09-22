@@ -70,7 +70,7 @@ final class CarrerasController
 
     private function validate(array $data, ?int $ignoreId): array
     {
-        $error = validation_text($data['nombre_carrera'], 'nombre de la carrera', 150);
+        $error = validation_label($data['nombre_carrera'], 'nombre de la carrera', 150);
         if ($error !== null) {
             return [$error];
         }

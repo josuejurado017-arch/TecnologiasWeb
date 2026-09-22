@@ -562,6 +562,58 @@ tbody tr:hover {
     color: #9a6417;
 }
 
+.status-configurada {
+    background: var(--accent-pale);
+    color: var(--accent-dark);
+}
+
+.status-sin-configurar {
+    background: #fff2d9;
+    color: #9a6417;
+}
+
+details > summary {
+    color: var(--accent-dark);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.config-form {
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-top: 0.6rem;
+    padding: 0.9rem;
+}
+
+.config-form fieldset {
+    border: none;
+    margin: 0 0 0.9rem;
+    padding: 0;
+}
+
+.config-form legend {
+    font-size: 0.78rem;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
+    padding: 0;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.checkbox-option {
+    align-items: center;
+    display: flex;
+    font-weight: 400;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+}
+
+.checkbox-option input {
+    height: auto;
+    width: auto;
+}
+
 .alert,
 .success {
     border-radius: 9px;

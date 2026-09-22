@@ -7,6 +7,11 @@ declare(strict_types=1);
  * lo coloca en un grupo compatible (existente o nuevo) respetando cupo y conflictos.
  * Reglas deterministas: cupo libre + sin solape de horario del estudiante,
  * del tutor y del aula.
+ *
+ * Al crear un grupo nuevo, las preferencias del tutor por materia
+ * (TutorMateriaConfig: turnos, modalidad, sabados, cupo recomendado) se cruzan
+ * con su disponibilidad_tutor real. Un tutor sin preferencia configurada para
+ * la materia conserva el comportamiento anterior sin restriccion adicional.
  */
 final class AsignacionController
 {
@@ -138,7 +143,11 @@ final class AsignacionController
     /** Busca un bloque tutor+aula libre y crea el grupo, inscribiendo al estudiante. */
     private function createGroupForMatter(int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, array $busy): ?array
     {
-        foreach ($this->grupos->availabilityForMatter($periodoId, $matterId) as $slot) {
+        $rawSlots = $this->grupos->availabilityForMatter($periodoId, $matterId);
+        $preferences = (new TutorMateriaConfig())->preferencesForMatter($matterId);
+        $candidates = (new TutorMateriaConfig())->expandSlots($rawSlots, $preferences);
+
+        foreach ($candidates as $slot) {
             $dia = $slot['dia_semana'];
             $hi = $slot['hora_inicio'];
             $hf = $slot['hora_fin'];
@@ -150,7 +159,7 @@ final class AsignacionController
             if ($this->grupos->tutorHasConflict($tutorId, $dia, $hi, $hf, $periodoId)) {
                 continue;
             }
-            $aula = $this->grupos->findFreeAula($dia, $hi, $hf, $periodoId);
+            $aula = $this->grupos->findFreeAula($dia, $hi, $hf, $periodoId, $slot['modalidad_preferida']);
             if ($aula === null) {
                 continue;
             }
@@ -161,6 +170,9 @@ final class AsignacionController
             }
             $modalidad = $aula['tipo'] === 'virtual' ? 'virtual' : 'presencial';
             $cupoGrupo = min($cupoMax, (int) $aula['capacidad']);
+            if ($slot['cupo_recomendado'] !== null) {
+                $cupoGrupo = min($cupoGrupo, $slot['cupo_recomendado']);
+            }
 
             $connection = Database::connection();
             $connection->beginTransaction();

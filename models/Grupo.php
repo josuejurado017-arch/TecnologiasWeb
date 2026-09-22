@@ -117,21 +117,32 @@ final class Grupo
         return (bool) $statement->fetchColumn();
     }
 
-    /** Aula libre para un bloque, priorizando capacidad ajustada; devuelve la fila o null. */
-    public function findFreeAula(string $dia, string $horaInicio, string $horaFin, int $periodoId): ?array
+    /**
+     * Aula libre para un bloque, priorizando capacidad ajustada; devuelve la fila o null.
+     * $modalidadPreferida (preferencia del tutor para la materia, ver TutorMateriaConfig):
+     * 'presencial' o 'virtual' restringen el tipo de aula; 'ambas' o null no filtran
+     * (comportamiento actual, retrocompatible con tutores sin preferencia configurada).
+     */
+    public function findFreeAula(string $dia, string $horaInicio, string $horaFin, int $periodoId, ?string $modalidadPreferida = null): ?array
     {
-        $statement = Database::connection()->prepare(
-            "SELECT a.id_aula, a.tipo, a.capacidad
+        $sql = "SELECT a.id_aula, a.tipo, a.capacidad
              FROM aulas a
-             WHERE a.estado = 'activa'
+             WHERE a.estado = 'activa'";
+        if ($modalidadPreferida === 'presencial') {
+            $sql .= " AND a.tipo = 'fisica'";
+        } elseif ($modalidadPreferida === 'virtual') {
+            $sql .= " AND a.tipo = 'virtual'";
+        }
+        $sql .= "
                AND NOT EXISTS (
                    SELECT 1 FROM grupos_tutoria g
                    WHERE g.id_aula = a.id_aula AND g.id_periodo = :id_periodo AND g.dia_semana = :dia
                      AND g.estado <> 'cancelado' AND g.hora_inicio < :hora_fin AND g.hora_fin > :hora_inicio
                )
              ORDER BY a.capacidad ASC
-             LIMIT 1"
-        );
+             LIMIT 1";
+
+        $statement = Database::connection()->prepare($sql);
         $statement->execute([
             'id_periodo' => $periodoId, 'dia' => $dia,
             'hora_fin' => $horaFin, 'hora_inicio' => $horaInicio,

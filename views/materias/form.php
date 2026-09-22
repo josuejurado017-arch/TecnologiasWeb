@@ -14,7 +14,7 @@ require __DIR__ . '/../layouts/header.php';
         <form method="post" action="<?= e($action) ?>">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <label for="nombre_materia">Nombre de la materia</label>
-            <input id="nombre_materia" name="nombre_materia" type="text" minlength="2" maxlength="150" required value="<?= e($data['nombre_materia'] ?? '') ?>">
+            <input id="nombre_materia" name="nombre_materia" type="text" minlength="3" maxlength="150" pattern="(?=.*[A-Za-zÁÉÍÓÚáéíóúÑñÜüÀ-ÿ]).{3,}" title="Debe contener al menos una letra." required value="<?= e($data['nombre_materia'] ?? '') ?>">
             <label for="id_carrera">Carrera</label>
             <select id="id_carrera" name="id_carrera">
                 <option value="">Sin carrera</option>
