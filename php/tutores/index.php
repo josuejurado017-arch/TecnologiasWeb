@@ -9,6 +9,8 @@ $messages = [
     'created' => 'Tutor creado correctamente.',
     'updated' => 'Tutor actualizado correctamente.',
     'deleted' => 'Perfil de tutor eliminado correctamente.',
+    'activated' => 'Tutor activado correctamente.',
+    'deactivated' => 'Tutor desactivado correctamente.',
 ];
 $messageCode = isset($_GET['message']) && is_string($_GET['message']) ? $_GET['message'] : '';
 $message = $messages[$messageCode] ?? null;

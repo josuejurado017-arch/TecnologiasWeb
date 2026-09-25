@@ -14,7 +14,7 @@ if ($id === false || $id < 1) {
     exit;
 }
 
-$error = (new PeriodosController())->activate($id);
+$error = (new PeriodosController())->activate($id, (int) Auth::user()['id_usuario']);
 if ($error !== null) {
     header('Location: ' . app_url('periodos/?error=' . rawurlencode($error)));
     exit;

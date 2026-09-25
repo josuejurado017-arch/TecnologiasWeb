@@ -60,8 +60,10 @@ final class Evaluacion
              INNER JOIN materias m ON m.id_materia = g.id_materia
              INNER JOIN tutores t ON t.id_tutor = g.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             INNER JOIN periodos p ON p.id_periodo = g.id_periodo
              WHERE i.id_inscripcion = :id_inscripcion AND i.id_estudiante = :id_estudiante
                AND i.estado = 'inscrito'
+               AND (p.estado = 'activa' OR (p.estado = 'cerrada' AND p.evaluaciones_hasta >= CURRENT_DATE))
                AND EXISTS (SELECT 1 FROM sesiones_tutoria s WHERE s.id_grupo = g.id_grupo AND s.estado = 'realizada')
                AND NOT EXISTS (SELECT 1 FROM evaluaciones_grupo e WHERE e.id_inscripcion = i.id_inscripcion)
              LIMIT 1"

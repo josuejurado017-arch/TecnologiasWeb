@@ -2,7 +2,10 @@
 # La base de datos vive en el servicio "db" definido en compose.yaml.
 FROM php:8.2-apache
 
-RUN docker-php-ext-install pdo_mysql \
+# zip: exportaciones a Excel (.xlsx, includes/Xlsx.php).
+RUN apt-get update && apt-get install -y --no-install-recommends libzip-dev \
+    && docker-php-ext-install pdo_mysql zip \
+    && rm -rf /var/lib/apt/lists/* \
     && a2enmod rewrite \
     && rm -f /etc/apache2/sites-enabled/000-default.conf
 

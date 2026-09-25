@@ -11,7 +11,7 @@ require __DIR__ . '/../layouts/header.php';
         <div>
             <span class="hero-kicker">Portal de apoyo académico</span>
             <h1>Aprende con el acompañamiento correcto.</h1>
-            <p>Solicita apoyo por materia y el sistema te asignará automáticamente un grupo de tutoría con tutor, aula y horario.</p>
+            <p>Solicita apoyo por materia y el sistema te asignará automáticamente un grupo de tutoría con tutor, horario y modalidad.</p>
         </div>
         <ul class="auth-points">
             <li>Elige las materias donde necesitas apoyo.</li>

@@ -7,8 +7,23 @@ $activePage = 'usuarios';
 $controller = new UsuariosController();
 $roles = $controller->roles();
 $careers = $controller->careers();
+
+// Los modulos Estudiantes y Tutores enlazan aqui con ?rol=... para que el
+// administrador llegue con el rol ya seleccionado (el formulario muestra
+// entonces los campos de ese perfil sin pasos extra).
+$rolSolicitado = is_string($_GET['rol'] ?? null) ? $_GET['rol'] : '';
+$rolPreseleccionado = '';
+if (in_array($rolSolicitado, ['estudiante', 'tutor'], true)) {
+    foreach ($roles as $role) {
+        if ($role['nombre_rol'] === $rolSolicitado) {
+            $rolPreseleccionado = (string) $role['id_rol'];
+            break;
+        }
+    }
+}
+
 $data = [
-    'id_rol' => '',
+    'id_rol' => $rolPreseleccionado,
     'nombre' => '',
     'apellido' => '',
     'correo' => '',

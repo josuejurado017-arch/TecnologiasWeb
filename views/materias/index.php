@@ -23,13 +23,14 @@
 
     <div class="table-wrapper card">
         <table>
-            <thead><tr><th>ID</th><th>Materia</th><th>Carrera</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>ID</th><th>Materia</th><th>Carrera</th><th>Modalidad</th><th>Acciones</th></tr></thead>
             <tbody>
                 <?php foreach ($materias as $subject): ?>
                     <tr data-row>
                         <td><?= (int) $subject['id_materia'] ?></td>
                         <td><?= e($subject['nombre_materia']) ?></td>
                         <td><?= e($subject['nombre_carrera'] ?? 'Sin carrera') ?></td>
+                        <td><?= e(['libre' => 'Libre', 'presencial' => 'Presencial', 'virtual' => 'Virtual'][$subject['modalidad_requerida']] ?? 'Libre') ?></td>
                         <td class="actions">
                             <a href="<?= e(app_url('materias/edit.php?id=' . (int) $subject['id_materia'])) ?>">Editar</a>
                             <form method="post" action="<?= e(app_url('materias/delete.php')) ?>" onsubmit="return confirm('Eliminar esta materia?');">
@@ -40,7 +41,7 @@
                         </td>
                     </tr>
                 <?php endforeach; ?>
-                <tr data-search-empty hidden><td colspan="4" class="empty-state">No se encontraron materias.</td></tr>
+                <tr data-search-empty hidden><td colspan="5" class="empty-state">No se encontraron materias.</td></tr>
             </tbody>
         </table>
     </div>

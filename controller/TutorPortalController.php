@@ -20,6 +20,23 @@ final class TutorPortalController
         return $this->model->profile($userId);
     }
 
+    /**
+     * Habilitacion docente (db/028): mientras la coordinacion no apruebe al tutor,
+     * solo puede completar su perfil. Agregar, quitar o configurar materias queda
+     * bloqueado. Devuelve el mensaje de bloqueo, o null si esta aprobado.
+     */
+    public function bloqueoHabilitacion(int $userId): ?string
+    {
+        $estado = $this->tutores->estadoDocenteByUserId($userId);
+
+        return match ($estado['estado_docente'] ?? null) {
+            'aprobado' => null,
+            'rechazado' => 'La coordinación rechazó tu habilitación docente: no puedes gestionar materias.',
+            'suspendido' => 'Tu habilitación docente está suspendida: no puedes gestionar materias.',
+            default => 'Tu habilitación docente está en revisión. Podrás agregar y configurar materias cuando la coordinación la apruebe.',
+        };
+    }
+
     /** Materias del tutor con el resumen de configuracion de preferencias de cada una. */
     public function subjects(int $userId): array
     {
@@ -31,14 +48,14 @@ final class TutorPortalController
             $materiaId = (int) $subject['id_materia'];
             $subject['config'] = $summary[$materiaId] ?? [
                 'modalidad' => null,
-                'disponible_sabados' => false,
                 'cupo_recomendado' => null,
-                'patron' => 'diario',
-                'patron_dia' => null,
                 'turnos' => [],
-                'sabados_franjas' => [],
+                'modalidad_incompatible' => false,
                 'configured' => false,
+                'estado' => null,
+                'motivo_rechazo' => null,
             ];
+            $subject['cobertura'] = $this->config->coberturaMateria($materiaId);
         }
         unset($subject);
 
@@ -53,12 +70,15 @@ final class TutorPortalController
         return $tutorId !== null ? $this->config->find($tutorId, $materiaId) : null;
     }
 
-    /** Guarda la configuracion (turnos, modalidad, sabados, cupo) de una materia del tutor. */
+    /** Guarda la configuracion (turnos, modalidad, cupo) de una materia del tutor. Los dias los decide la demanda (db/033). */
     public function saveMateriaConfig(int $userId, array $input): ?string
     {
         $tutorId = $this->tutores->findIdByUserId($userId);
         if ($tutorId === null) {
             return 'Tu perfil de tutor no esta completo.';
+        }
+        if (($bloqueo = $this->bloqueoHabilitacion($userId)) !== null) {
+            return $bloqueo;
         }
 
         $materiaId = filter_var($input['id_materia'] ?? null, FILTER_VALIDATE_INT);
@@ -75,38 +95,18 @@ final class TutorPortalController
         if (!in_array($modalidad, ['presencial', 'virtual', 'ambas'], true)) {
             return 'Selecciona una modalidad válida.';
         }
+        $requerida = (string) ((new Materia())->findById($materiaId)['modalidad_requerida'] ?? 'libre');
+        if (!in_array($modalidad, TutorMateriaConfig::modalidadesPermitidas($requerida), true)) {
+            return 'Esta materia se dicta solo en modalidad ' . $requerida . '.';
+        }
 
-        // turnos[] = turnos que atiende en esta materia; los dias salen del patron.
         $turnosInput = isset($input['turnos']) && is_array($input['turnos']) ? $input['turnos'] : [];
         $turnos = array_values(array_unique(array_filter(
             $turnosInput,
             fn ($turno): bool => is_string($turno) && $this->config->isValidTurno($turno)
         )));
-
-        $patron = is_string($input['patron'] ?? null) ? $input['patron'] : '';
-        if (!$this->config->isValidPatron($patron)) {
-            return 'Selecciona un patrón semanal válido.';
-        }
-
-        // Solo el patron 'uno' necesita precisar el dia; en los demas se descarta.
-        $patronDia = null;
-        if ($patron === 'uno') {
-            $diaInput = is_string($input['patron_dia'] ?? null) ? $input['patron_dia'] : '';
-            if (!$this->config->isValidDia($diaInput)) {
-                return 'Elige el día de la semana para el patrón "Un día por semana".';
-            }
-            $patronDia = $diaInput;
-        }
-
-        $disponibleSabados = !empty($input['disponible_sabados']);
-        $franjasInput = isset($input['sabados_franjas']) && is_array($input['sabados_franjas']) ? $input['sabados_franjas'] : [];
-        $franjas = array_values(array_unique(array_filter(
-            $franjasInput,
-            fn ($franja): bool => is_string($franja) && $this->config->isValidFranja($franja)
-        )));
-
-        if (!$turnos && !($disponibleSabados && $franjas)) {
-            return 'Selecciona al menos un turno, o una franja de sábado.';
+        if (!$turnos) {
+            return 'Selecciona al menos un turno.';
         }
 
         $cupoRaw = $input['cupo_recomendado'] ?? '';
@@ -120,36 +120,70 @@ final class TutorPortalController
         }
 
         try {
-            $this->config->save($tutorId, $materiaId, [
+            $historialId = $this->config->save($tutorId, $materiaId, [
                 'modalidad' => $modalidad,
-                'disponible_sabados' => $disponibleSabados,
                 'cupo_recomendado' => $cupoRecomendado,
-                'patron' => $patron,
-                'patron_dia' => $patronDia,
                 'turnos' => $turnos,
-                'sabados_franjas' => $disponibleSabados ? $franjas : [],
             ]);
+        } catch (RuntimeException $exception) {
+            return $exception->getMessage();
         } catch (Throwable $exception) {
             error_log($exception->getMessage());
             return 'No fue posible guardar la configuración.';
         }
 
-        // Las preferencias cambian que bloques puede usar el motor para esta materia.
+        // La oferta queda pendiente (TutorMateriaConfig::save): el reproceso no
+        // encontrara horarios aprobados todavia, pero queda listo para cuando la
+        // coordinacion la apruebe.
         (new AsignacionController())->reprocesarMateria($materiaId);
+
+        if ($historialId !== null) {
+            try {
+                $tutor = $this->tutores->findById($tutorId);
+                $materiaNombre = (string) ((new Materia())->findById($materiaId)['nombre_materia'] ?? 'la materia');
+                if ($tutor !== null) {
+                    (new Notificacion())->notifyAdminsOfertaPendiente(
+                        Database::connection(),
+                        $tutorId,
+                        $materiaId,
+                        $tutor['nombre'] . ' ' . $tutor['apellido'],
+                        $materiaNombre,
+                        $historialId
+                    );
+                }
+            } catch (Throwable $exception) {
+                error_log('Notificacion oferta pendiente: ' . $exception->getMessage());
+            }
+        }
 
         return null;
     }
 
     public function availableSubjects(int $userId): array
     {
+        if ((new Periodo())->activa() === null) { return []; }
+        $tutorId = $this->tutores->findIdByUserId($userId);
+        if ($tutorId !== null && $this->config->materiasOcupadas($tutorId) >= TutorMateriaConfig::MAX_MATERIAS) {
+            return [];
+        }
         return $this->model->availableSubjects($userId);
     }
 
     public function addSubject(int $userId, array $input): ?string
     {
+        if ((new Periodo())->activa() === null) {
+            return 'No hay un período activo. Espera la siguiente campaña para renovar tu oferta.';
+        }
+        if (($bloqueo = $this->bloqueoHabilitacion($userId)) !== null) {
+            return $bloqueo;
+        }
         $subjectId = filter_var($input['id_materia'] ?? null, FILTER_VALIDATE_INT);
         if ($subjectId === false || $subjectId < 1) {
             return 'Seleccione una materia válida.';
+        }
+        $tutorId = $this->tutores->findIdByUserId($userId);
+        if ($tutorId !== null && $this->config->materiasOcupadas($tutorId) >= TutorMateriaConfig::MAX_MATERIAS) {
+            return 'Ya tienes dos materias en este período.';
         }
 
         try {
@@ -169,6 +203,9 @@ final class TutorPortalController
 
     public function removeSubject(int $userId, array $input): ?string
     {
+        if (($bloqueo = $this->bloqueoHabilitacion($userId)) !== null) {
+            return $bloqueo;
+        }
         $subjectId = filter_var($input['id_materia'] ?? null, FILTER_VALIDATE_INT);
         if ($subjectId === false || $subjectId < 1) {
             return 'Materia no válida.';

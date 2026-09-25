@@ -12,7 +12,7 @@ final class ReporteCampania
         $statement = Database::connection()->prepare(
             "SELECT
                 (SELECT COUNT(*) FROM grupos_tutoria WHERE id_periodo = :p1) AS grupos,
-                (SELECT COUNT(*) FROM grupos_tutoria WHERE id_periodo = :p2 AND estado = 'confirmado') AS grupos_confirmados,
+                (SELECT COUNT(*) FROM grupos_tutoria WHERE id_periodo = :p2 AND estado IN ('confirmado','formacion','en_curso')) AS grupos_confirmados,
                 (SELECT COUNT(*) FROM grupos_tutoria WHERE id_periodo = :p3 AND estado = 'cancelado') AS grupos_cancelados,
                 (SELECT COUNT(*) FROM inscripciones i JOIN grupos_tutoria g ON g.id_grupo = i.id_grupo WHERE g.id_periodo = :p4 AND i.estado = 'inscrito') AS inscritos,
                 (SELECT COUNT(DISTINCT i.id_estudiante) FROM inscripciones i JOIN grupos_tutoria g ON g.id_grupo = i.id_grupo WHERE g.id_periodo = :p5 AND i.estado = 'inscrito') AS estudiantes,
@@ -60,6 +60,26 @@ final class ReporteCampania
         return $statement->fetchAll();
     }
 
+    /**
+     * Grupos no cancelados del periodo por modalidad y espacio (db/029), con cuantos
+     * vigentes siguen sin aula o enlace definido.
+     */
+    public function gruposPorEspacio(int $periodoId): array
+    {
+        $statement = Database::connection()->prepare(
+            "SELECT g.modalidad, e.nombre AS espacio, COUNT(*) AS grupos,
+                    SUM(CASE WHEN " . Grupo::SQL_UBICACION_PENDIENTE . " THEN 1 ELSE 0 END) AS sin_ubicacion
+             FROM grupos_tutoria g
+             INNER JOIN espacios_tutoria e ON e.id_espacio = g.id_espacio
+             WHERE g.id_periodo = :id_periodo AND g.estado <> 'cancelado'
+             GROUP BY g.modalidad, e.id_espacio, e.nombre
+             ORDER BY FIELD(g.modalidad, 'presencial', 'virtual'), grupos DESC, e.nombre"
+        );
+        $statement->execute(['id_periodo' => $periodoId]);
+
+        return $statement->fetchAll();
+    }
+
     public function topCarreras(int $periodoId, int $limit = 5): array
     {
         $statement = Database::connection()->prepare(
@@ -97,12 +117,13 @@ final class ReporteCampania
     public function coberturaTutores(): array
     {
         $configurada = TutorMateriaConfig::sqlMateriaConfigurada('tm');
+        $habilitado = TutorMateriaConfig::sqlTutorHabilitado();
         $row = Database::connection()->query(
             "SELECT
-                (SELECT COUNT(*) FROM tutores t INNER JOIN usuarios u ON u.id_usuario = t.id_usuario WHERE u.estado = 'activo') AS tutores_activos,
+                (SELECT COUNT(*) FROM tutores t INNER JOIN usuarios u ON u.id_usuario = t.id_usuario WHERE {$habilitado}) AS tutores_activos,
                 (SELECT COUNT(DISTINCT tm.id_tutor) FROM tutor_materia tm
                     INNER JOIN tutores t ON t.id_tutor = tm.id_tutor
-                    INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+                    INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND {$habilitado}
                     WHERE {$configurada}) AS tutores_con_horarios"
         )->fetch();
 

@@ -19,5 +19,13 @@ $enEspera = ($periodo && $studentId)
         static fn (array $m): bool => $m['estado'] === OfertaMateria::ESTADO_EN_ESPERA
     )
     : [];
+// Interes registrado (db/035): cuantos reuniria hoy su mejor turno, contra el minimo del periodo.
+$motor = new AsignacionController();
+foreach ($enEspera as &$m) {
+    $m['reunidos'] = $m['motivo_espera'] === Demanda::MOTIVO_ESPERANDO
+        ? $motor->progresoInteres($studentId, (int) $m['id_materia'], (int) $periodo['id_periodo'], (int) $periodo['cupo_max_default'])
+        : null;
+}
+unset($m);
 
 require dirname(__DIR__, 2) . '/views/tutorias/mis.php';

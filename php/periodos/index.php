@@ -9,7 +9,8 @@ $messages = [
     'created' => 'Período creado correctamente.',
     'updated' => 'Período actualizado correctamente.',
     'deleted' => 'Período eliminado correctamente.',
-    'activated' => 'Período activado. Los demás quedaron en borrador.',
+    'activated' => 'Período activado. Ya recibe solicitudes de apoyo.',
+    'closed' => 'Período cerrado. Sus grupos quedaron finalizados y la demanda sin atender quedó registrada como vencida. Los estudiantes pueden evaluar durante ' . Periodo::DIAS_GRACIA_EVALUACION . ' días.',
 ];
 $messageCode = isset($_GET['message']) && is_string($_GET['message']) ? $_GET['message'] : '';
 $message = $messages[$messageCode] ?? null;

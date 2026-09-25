@@ -20,4 +20,8 @@ foreach ($grupos as $grupo) {
     $sesionesPorGrupo[$grupo['id_grupo']] = $sesionModel->forGroup((int) $grupo['id_grupo']);
 }
 
+$messages = ['propuesta' => 'Enlace propuesto. La coordinación lo revisará y te avisará.'];
+$message = $messages[$_GET['message'] ?? ''] ?? null;
+$error = isset($_GET['error']) && is_string($_GET['error']) ? $_GET['error'] : null;
+
 require dirname(__DIR__, 2) . '/views/tutor/mis-grupos.php';

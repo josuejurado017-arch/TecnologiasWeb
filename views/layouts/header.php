@@ -4,6 +4,23 @@ $isAuthenticated = Auth::check();
 $user = $user ?? Auth::user();
 $activePage = $activePage ?? '';
 $role = $user['nombre_rol'] ?? '';
+// Visto bueno de la coordinacion (db/028): contadores del administrador y estado
+// docente del tutor. Consultas baratas; si fallan, el menu se muestra sin ellos.
+$reviewCounts = ['tutores' => 0, 'grupos' => 0, 'ofertas' => 0];
+$tutorHabilitacion = null;
+if ($isAuthenticated) {
+    try {
+        if ($role === 'administrador') {
+            $reviewCounts['tutores'] = (new Tutor())->countPendientes();
+            $reviewCounts['grupos'] = (new Grupo())->countPorAprobar();
+            $reviewCounts['ofertas'] = (new TutorMateriaConfig())->countPendientes();
+        } elseif ($role === 'tutor') {
+            $tutorHabilitacion = (new Tutor())->estadoDocenteByUserId((int) ($user['id_usuario'] ?? 0));
+        }
+    } catch (Throwable $exception) {
+        error_log('Contadores de revision: ' . $exception->getMessage());
+    }
+}
 ?><!doctype html>
 <html lang="es">
 <head>
@@ -43,10 +60,6 @@ $role = $user['nombre_rol'] ?? '';
                         <span class="nav-icon">CP</span>
                         <span>Períodos de tutoría</span>
                     </a>
-                    <a class="nav-link <?= $activePage === 'aulas' ? 'is-active' : '' ?>" href="<?= e(app_url('aulas/')) ?>">
-                        <span class="nav-icon">AU</span>
-                        <span>Aulas</span>
-                    </a>
                     <span class="nav-label">Catálogo académico</span>
                     <a class="nav-link <?= $activePage === 'carreras' ? 'is-active' : '' ?>" href="<?= e(app_url('carreras/')) ?>">
                         <span class="nav-icon">CA</span>
@@ -65,10 +78,21 @@ $role = $user['nombre_rol'] ?? '';
                         <span class="nav-icon">TU</span>
                         <span>Tutores</span>
                     </a>
+                    <a class="nav-link <?= $activePage === 'tutores-pendientes' ? 'is-active' : '' ?>" href="<?= e(app_url('tutores/pendientes/')) ?>">
+                        <span class="nav-icon">TP</span>
+                        <span>Tutores pendientes</span>
+                        <?php if ($reviewCounts['tutores'] > 0): ?><span class="nav-count"><?= (int) $reviewCounts['tutores'] ?></span><?php endif; ?>
+                    </a>
+                    <a class="nav-link <?= $activePage === 'ofertas-tutores' ? 'is-active' : '' ?>" href="<?= e(app_url('tutores/ofertas/')) ?>">
+                        <span class="nav-icon">OF</span>
+                        <span>Ofertas de materias</span>
+                        <?php if ($reviewCounts['ofertas'] > 0): ?><span class="nav-count"><?= (int) $reviewCounts['ofertas'] ?></span><?php endif; ?>
+                    </a>
                     <span class="nav-label">Operación</span>
                     <a class="nav-link <?= $activePage === 'grupos' ? 'is-active' : '' ?>" href="<?= e(app_url('grupos/')) ?>">
                         <span class="nav-icon">GR</span>
                         <span>Grupos de tutoría</span>
+                        <?php if ($reviewCounts['grupos'] > 0): ?><span class="nav-count" title="Grupos por aprobar"><?= (int) $reviewCounts['grupos'] ?></span><?php endif; ?>
                     </a>
                     <span class="nav-label">Analítica</span>
                     <a class="nav-link <?= $activePage === 'cobertura-tutores' ? 'is-active' : '' ?>" href="<?= e(app_url('cobertura-tutores/')) ?>">
@@ -82,6 +106,11 @@ $role = $user['nombre_rol'] ?? '';
                     <a class="nav-link <?= $activePage === 'accesos' ? 'is-active' : '' ?>" href="<?= e(app_url('accesos/')) ?>">
                         <span class="nav-icon">LG</span>
                         <span>Registro de accesos</span>
+                    </a>
+                    <span class="nav-label">Configuración</span>
+                    <a class="nav-link <?= $activePage === 'espacios' ? 'is-active' : '' ?>" href="<?= e(app_url('espacios/')) ?>">
+                        <span class="nav-icon">ES</span>
+                        <span>Espacios de tutoría</span>
                     </a>
                 <?php endif; ?>
                 <?php if ($role === 'tutor'): ?>
@@ -208,4 +237,18 @@ $role = $user['nombre_rol'] ?? '';
                     </div>
                 </div>
             </header>
+            <?php if ($tutorHabilitacion !== null && $tutorHabilitacion['estado_docente'] !== 'aprobado'): ?>
+                <div class="notice-warning" role="status">
+                    <?php if ($tutorHabilitacion['estado_docente'] === 'pendiente'): ?>
+                        <strong>Tu habilitación docente está en revisión.</strong>
+                        Ya puedes completar tu perfil y configurar tus materias. El sistema te propondrá grupos cuando la coordinación académica apruebe tu habilitación.
+                    <?php elseif ($tutorHabilitacion['estado_docente'] === 'rechazado'): ?>
+                        <strong>La coordinación no aprobó tu habilitación docente.</strong>
+                        <?= $tutorHabilitacion['motivo_rechazo'] ? 'Motivo: ' . e($tutorHabilitacion['motivo_rechazo']) . '. ' : '' ?>Contacta a la coordinación académica si quieres que se reconsidere.
+                    <?php else: ?>
+                        <strong>Tu habilitación docente está suspendida.</strong>
+                        No recibirás grupos nuevos. Contacta a la coordinación académica.
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
 <?php endif; ?>

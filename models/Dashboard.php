@@ -21,6 +21,7 @@ final class Dashboard
             $meta = $this->tutorMeta($userId);
 
             return array_merge($base, $meta, [
+                'etapas' => $periodoId && $tutorId ? (new Grupo())->contarPorEtapa($periodoId, $tutorId) : [],
                 'grupos' => (int) ($extra['grupos'] ?? 0),
                 'estudiantes' => (int) ($extra['estudiantes'] ?? 0),
                 'sesiones_realizadas' => (int) ($extra['sesiones_realizadas'] ?? 0),
@@ -58,6 +59,8 @@ final class Dashboard
         $demanda = $periodoId ? (new Demanda())->conversion($periodoId) : [];
 
         return array_merge($base, $this->adminMeta(), [
+            'etapas' => $periodoId ? (new Grupo())->contarPorEtapa($periodoId) : [],
+            'demanda_esperando' => (int) ($demanda['pend_esperando'] ?? 0),
             'grupos' => (int) ($totals['grupos'] ?? 0),
             'grupos_confirmados' => (int) ($totals['grupos_confirmados'] ?? 0),
             'grupos_cancelados' => (int) ($totals['grupos_cancelados'] ?? 0),
@@ -116,10 +119,10 @@ final class Dashboard
                 (SELECT COUNT(*) FROM estudiantes) AS total_estudiantes,
                 (SELECT COUNT(*) FROM tutores) AS total_tutores,
                 (SELECT COUNT(*) FROM carreras) AS total_carreras,
-                (SELECT COUNT(*) FROM materias) AS total_materias,
-                (SELECT COUNT(*) FROM aulas WHERE estado = 'activa') AS total_aulas"
+                (SELECT COUNT(*) FROM materias) AS total_materias"
         )->fetch();
         $row = $row ?: [];
+        $row['grupos_sin_ubicacion'] = (new Grupo())->countSinUbicacion();
         $row['tutores_sin_horarios'] = (new TutorMateriaConfig())->countTutorsWithoutSchedule();
 
         return $row;
@@ -157,17 +160,18 @@ final class Dashboard
     private function materiasConOferta(int $periodoId): int
     {
         $configurada = TutorMateriaConfig::sqlMateriaConfigurada('tm');
+        $habilitado = TutorMateriaConfig::sqlTutorHabilitado();
         $statement = Database::connection()->prepare(
             "SELECT COUNT(*) FROM materias m
              WHERE EXISTS (
                  SELECT 1 FROM tutor_materia tm
                  INNER JOIN tutores t ON t.id_tutor = tm.id_tutor
-                 INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND u.estado = 'activo'
+                 INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND {$habilitado}
                  WHERE tm.id_materia = m.id_materia AND {$configurada}
              ) OR EXISTS (
                  SELECT 1 FROM grupos_tutoria g
                  WHERE g.id_materia = m.id_materia AND g.id_periodo = :id_periodo
-                   AND g.estado IN ('formacion','confirmado') AND g.cupo_ocupado < g.cupo_max
+                   AND g.estado IN ('por_aprobar','formacion','confirmado','en_curso') AND g.cupo_ocupado < g.cupo_max
              )"
         );
         $statement->execute(['id_periodo' => $periodoId]);

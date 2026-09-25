@@ -27,7 +27,7 @@ Modulos disponibles:
 - `/usuarios/`, `/roles/`, `/carreras/` y `/materias/`: administracion general.
 - `/estudiantes/` y `/tutores/`: perfiles academicos y profesionales.
 - `/asignaciones/`: materias asignadas a tutores.
-- `/mis-materias/`: materias del tutor y sus horarios (turnos, dias, sabados, modalidad).
+- `/mis-materias/`: materias del tutor, turnos y modalidad (los dias de cada grupo los fija la demanda, db/033).
 - `/cobertura-tutores/`: supervision del administrador de tutores sin horarios configurados.
 - `/tutorias/`: solicitudes y estados de tutorias.
 - `/evaluaciones/`: evaluaciones de tutorias realizadas.
@@ -40,6 +40,9 @@ Modulos disponibles:
 - `/mi-perfil-tutor/` y `/mis-materias/`: espacio privado del tutor.
 - `/tutorias/especial.php`: solicitud de una fecha y horario fuera de la disponibilidad publicada.
 - `/tutorias/especiales.php`: aprobacion o rechazo de solicitudes especiales para tutores y administradores.
+- `/espacios/`: espacios de tutoria (Aula presencial, Laboratorio, Teams, Meet, Zoom). Son categorias, no aulas reservadas: el sistema no conoce la ocupacion real de la universidad. Reemplazan al antiguo modulo `/aulas/` (`db/029_espacios_tutoria.sql`).
+- `/grupos/ubicacion.php?grupo=N`: la coordinacion registra el aula o el enlace de cada grupo y revisa el enlace que propone el tutor; cada cambio queda en `grupo_ubicacion_historial`.
+- `db/030_drop_aulas_legado.sql`: borra el catalogo `aulas_legado` que deja 029. En una base con datos reales, ejecutarlo solo despues de validar la migracion (es irreversible).
 
 ## Datos demo para pruebas
 
@@ -156,6 +159,8 @@ sudo bash deploy/install-ubuntu.sh
 ```
 
 Los cambios de estructura de la base se aplican ejecutando el script SQL de migracion correspondiente. Git no modifica automaticamente MySQL.
+
+Para la regla de ofertas por campaña, aplicar `db/040_ofertas_por_periodo.sql` **una sola vez, después de 039**, sobre una copia de seguridad de la base. La migración asocia las ofertas anteriores al período activo y marca como rechazadas las aprobaciones sin grupo que excedían dos materias o repetían materia/turno; conserva los grupos y el historial. Al cerrar el período, las ofertas ya no aparecen en la siguiente campaña: cada tutor debe renovarlas.
 
 ## Docker (recomendado para el servidor)
 

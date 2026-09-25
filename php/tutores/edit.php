@@ -13,6 +13,10 @@ if (!$data) {
     exit('Tutor no encontrado.');
 }
 
+// Datos de la cuenta tal como estan guardados: la cabecera los muestra aunque
+// el POST falle y $data traiga lo que el administrador acaba de escribir.
+$account = $data;
+
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
@@ -27,6 +31,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$users = $controller->users((int) $data['id_usuario']);
-$mode = 'edit';
 require dirname(__DIR__, 2) . '/views/tutores/form.php';

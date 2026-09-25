@@ -31,25 +31,15 @@ $accesses = (new AccesosController())->index(
 );
 $suffix = $fechaDesde !== '' || $fechaHasta !== '' ? '-' . ($fechaDesde ?: 'inicio') . '-a-' . ($fechaHasta ?: 'hoy') : '';
 
-header('Content-Type: text/csv; charset=UTF-8');
-header('Content-Disposition: attachment; filename="historial-accesos' . $suffix . '.csv"');
-header('Cache-Control: no-store');
-
-$output = fopen('php://output', 'wb');
-fwrite($output, "\xEF\xBB\xBF");
-fputcsv($output, ['Fecha y hora', 'Usuario', 'Nombre', 'IP de origen', 'Resultado'], ';');
-$csvCell = static function ($value): string {
-    $value = (string) $value;
-
-    return preg_match('/^\s*[=+\-@]/u', $value) ? "'" . $value : $value;
-};
+$rows = [];
 foreach ($accesses as $access) {
-    fputcsv($output, [
-        $csvCell($access['fecha_hora']),
-        $csvCell($access['usuario']),
-        $csvCell($access['nombre'] . ' ' . $access['apellido']),
-        $csvCell($access['ip_origen'] ?: 'No disponible'),
-        $csvCell($access['resultado']),
-    ], ';');
+    $rows[] = [
+        $access['fecha_hora'],
+        $access['usuario'],
+        $access['nombre'] . ' ' . $access['apellido'],
+        $access['ip_origen'] ?: 'No disponible',
+        ucfirst((string) $access['resultado']),
+    ];
 }
-fclose($output);
+xlsx_download('historial-accesos' . $suffix, ['Fecha y hora', 'Usuario', 'Nombre', 'IP de origen', 'Resultado'], $rows, 'Accesos');
+exit;

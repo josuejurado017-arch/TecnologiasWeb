@@ -1,5 +1,7 @@
 <?php
 
+// Activa, desactiva o marca como predeterminado un espacio de tutoria (POST).
+
 require dirname(__DIR__, 2) . '/includes/bootstrap.php';
 Auth::requireRole('administrador');
 
@@ -10,15 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verify_csrf_token($_POST['csrf_tok
 
 $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
 if ($id === false || $id < 1) {
-    header('Location: ' . app_url('aulas/?error=Identificador+no+valido'));
+    header('Location: ' . app_url('espacios/?error=' . rawurlencode('Identificador no válido.')));
     exit;
 }
 
-$error = (new AulasController())->delete($id);
+$error = (new EspaciosController())->cambiarEstado($id, (string) ($_POST['accion'] ?? ''));
 if ($error !== null) {
-    header('Location: ' . app_url('aulas/?error=' . rawurlencode($error)));
+    header('Location: ' . app_url('espacios/?error=' . rawurlencode($error)));
     exit;
 }
 
-header('Location: ' . app_url('aulas/?message=deleted'));
+header('Location: ' . app_url('espacios/?message=estado'));
 exit;

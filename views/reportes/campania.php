@@ -70,6 +70,13 @@ $demMaterias = $data['demandaMaterias'] ?? [];
                 </tbody></table>
             </section>
             <section class="card">
+                <h2>Grupos por modalidad y espacio</h2>
+                <table><thead><tr><th>Modalidad</th><th>Espacio</th><th>Grupos</th><th>Sin ubicación</th></tr></thead><tbody>
+                    <?php foreach (($data['espacios'] ?? []) as $r): ?><tr><td><?= e(ucfirst((string) $r['modalidad'])) ?></td><td><?= e($r['espacio']) ?></td><td><?= (int) $r['grupos'] ?></td><td><?= (int) $r['sin_ubicacion'] > 0 ? '<span class="badge badge-warning">' . (int) $r['sin_ubicacion'] . '</span>' : '—' ?></td></tr><?php endforeach; ?>
+                    <?php if (empty($data['espacios'])): ?><tr><td colspan="4" class="empty-state">Sin grupos en el período.</td></tr><?php endif; ?>
+                </tbody></table>
+            </section>
+            <section class="card">
                 <h2>Satisfacción por criterio</h2>
                 <table><tbody>
                     <tr><td>General</td><td><?= e((string) ($sat['general'] ?? '—')) ?></td></tr>
@@ -85,7 +92,7 @@ $demMaterias = $data['demandaMaterias'] ?? [];
                 <table><tbody>
                     <tr><td>Registradas en el periodo</td><td><?= $demRegistradas ?></td></tr>
                     <tr><td>Atendidas por el sistema</td><td><?= $demAtendidas ?><?php if (isset($dem['horas_espera_promedio']) && $dem['horas_espera_promedio'] !== null): ?> <small class="table-meta">(espera media <?= e((string) $dem['horas_espera_promedio']) ?> h)</small><?php endif; ?></td></tr>
-                    <tr><td>Pendientes</td><td><strong<?= $demPendientes > 0 ? ' class="report-warning"' : '' ?>><?= $demPendientes ?></strong></td></tr>
+                    <tr><td>Sin atender<?= (int) ($dem['vencidas'] ?? 0) > 0 ? ' (vencidas al cierre del período)' : '' ?></td><td><strong<?= $demPendientes > 0 ? ' class="report-warning"' : '' ?>><?= $demPendientes ?></strong></td></tr>
                     <tr><td>&nbsp;&nbsp;&middot; Sin tutor habilitado</td><td><strong<?= (int) ($dem['pend_sin_tutor'] ?? 0) > 0 ? ' class="report-warning"' : '' ?>><?= (int) ($dem['pend_sin_tutor'] ?? 0) ?></strong> en <?= (int) ($dem['materias_sin_tutor'] ?? 0) ?> materia(s)</td></tr>
                     <tr><td>&nbsp;&nbsp;&middot; Sin horario compatible</td><td><?= (int) ($dem['pend_sin_horario'] ?? 0) ?></td></tr>
                     <tr><td>&nbsp;&nbsp;&middot; Por grupo cancelado</td><td><?= (int) ($dem['pend_grupo_cancelado'] ?? 0) ?></td></tr>

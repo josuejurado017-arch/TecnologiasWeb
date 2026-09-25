@@ -18,7 +18,7 @@ final class TutorPortal
     public function subjects(int $userId): array
     {
         $statement = Database::connection()->prepare(
-            'SELECT m.id_materia, m.nombre_materia, c.nombre_carrera FROM tutor_materia tm INNER JOIN tutores t ON t.id_tutor = tm.id_tutor INNER JOIN materias m ON m.id_materia = tm.id_materia LEFT JOIN carreras c ON c.id_carrera = m.id_carrera WHERE t.id_usuario = :id_usuario ORDER BY m.nombre_materia'
+            'SELECT m.id_materia, m.nombre_materia, m.modalidad_requerida, c.nombre_carrera FROM tutor_materia tm INNER JOIN tutores t ON t.id_tutor = tm.id_tutor INNER JOIN materias m ON m.id_materia = tm.id_materia LEFT JOIN carreras c ON c.id_carrera = m.id_carrera WHERE t.id_usuario = :id_usuario ORDER BY m.nombre_materia'
         );
         $statement->execute(['id_usuario' => $userId]);
 
@@ -50,11 +50,20 @@ final class TutorPortal
     public function removeSubject(int $userId, int $subjectId): void
     {
         $statement = Database::connection()->prepare(
-            "SELECT g.id_grupo FROM grupos_tutoria g INNER JOIN tutores t ON t.id_tutor = g.id_tutor WHERE t.id_usuario = :id_usuario AND g.id_materia = :id_materia AND g.estado IN ('formacion', 'confirmado', 'en_curso') LIMIT 1"
+            "SELECT g.id_grupo FROM grupos_tutoria g INNER JOIN tutores t ON t.id_tutor = g.id_tutor WHERE t.id_usuario = :id_usuario AND g.id_materia = :id_materia AND g.estado IN ('por_aprobar', 'formacion', 'confirmado', 'en_curso') LIMIT 1"
         );
         $statement->execute(['id_usuario' => $userId, 'id_materia' => $subjectId]);
         if ($statement->fetch()) {
             throw new RuntimeException('No puedes quitar una materia con grupos activos en una campana.');
+        }
+
+        $historial = Database::connection()->prepare(
+            'SELECT 1 FROM tutor_materia_config c INNER JOIN tutores t ON t.id_tutor = c.id_tutor
+             WHERE t.id_usuario = :u AND c.id_materia = :m AND c.id_periodo <> COALESCE((SELECT id_periodo FROM periodos WHERE estado = \'activa\' LIMIT 1), 0) LIMIT 1'
+        );
+        $historial->execute(['u' => $userId, 'm' => $subjectId]);
+        if ($historial->fetchColumn()) {
+            throw new RuntimeException('Esta materia conserva ofertas de períodos anteriores y no se puede borrar del historial. Puedes renovar otras materias en el período actual.');
         }
 
         $statement = Database::connection()->prepare(

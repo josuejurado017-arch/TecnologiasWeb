@@ -48,9 +48,9 @@
                         <td><?= e($usuario['nombre_rol']) ?></td>
                         <td>
                             <?php if ($usuario['nombre_rol'] === 'estudiante'): ?>
-                                <?php if (!empty($usuario['id_estudiante'])): ?><a href="<?= e(app_url('estudiantes/edit.php?id=' . (int) $usuario['id_estudiante'])) ?>">Ver perfil</a><?php else: ?><a href="<?= e(app_url('estudiantes/create.php?usuario=' . (int) $usuario['id_usuario'])) ?>">Crear perfil</a><?php endif; ?>
+                                <?php if (!empty($usuario['id_estudiante'])): ?><a href="<?= e(app_url('estudiantes/edit.php?id=' . (int) $usuario['id_estudiante'])) ?>">Ver perfil</a><?php else: ?><span class="table-meta">Sin perfil</span><?php endif; ?>
                             <?php elseif ($usuario['nombre_rol'] === 'tutor'): ?>
-                                <?php if (!empty($usuario['id_tutor'])): ?><a href="<?= e(app_url('tutores/edit.php?id=' . (int) $usuario['id_tutor'])) ?>">Ver perfil</a><?php else: ?><a href="<?= e(app_url('tutores/create.php?usuario=' . (int) $usuario['id_usuario'])) ?>">Crear perfil</a><?php endif; ?>
+                                <?php if (!empty($usuario['id_tutor'])): ?><a href="<?= e(app_url('tutores/edit.php?id=' . (int) $usuario['id_tutor'])) ?>">Ver perfil</a><?php else: ?><span class="table-meta">Sin perfil</span><?php endif; ?>
                             <?php else: ?>
                                 <span class="table-muted">No aplica</span>
                             <?php endif; ?>

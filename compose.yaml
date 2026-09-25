@@ -61,6 +61,30 @@ services:
       - ./db/024_grupo_dias.sql:/docker-entrypoint-initdb.d/024_grupo_dias.sql:ro
       - ./db/025_horarios_por_materia.sql:/docker-entrypoint-initdb.d/025_horarios_por_materia.sql:ro
       - ./db/026_tutor_materia_patron.sql:/docker-entrypoint-initdb.d/026_tutor_materia_patron.sql:ro
+      - ./db/027_datos_operativos.sql:/docker-entrypoint-initdb.d/027_datos_operativos.sql:ro
+      - ./db/028_aprobacion_tutores_grupos.sql:/docker-entrypoint-initdb.d/028_aprobacion_tutores_grupos.sql:ro
+      # 029 migra los datos de 027 de aulas a espacios; en una base nueva 030 puede
+      # borrar el catalogo legado de inmediato (no hay datos reales que comparar).
+      - ./db/029_espacios_tutoria.sql:/docker-entrypoint-initdb.d/029_espacios_tutoria.sql:ro
+      - ./db/030_drop_aulas_legado.sql:/docker-entrypoint-initdb.d/030_drop_aulas_legado.sql:ro
+      - ./db/031_ciclo_periodos.sql:/docker-entrypoint-initdb.d/031_ciclo_periodos.sql:ro
+      - ./db/032_ofertas_tutor_materia.sql:/docker-entrypoint-initdb.d/032_ofertas_tutor_materia.sql:ro
+      - ./db/033_frecuencia_por_demanda.sql:/docker-entrypoint-initdb.d/033_frecuencia_por_demanda.sql:ro
+      - ./db/034_oferta_sin_espacio.sql:/docker-entrypoint-initdb.d/034_oferta_sin_espacio.sql:ro
+      - ./db/035_formacion_por_quorum.sql:/docker-entrypoint-initdb.d/035_formacion_por_quorum.sql:ro
+      # 036 reemplaza los datos de 027 por otros generados con las reglas vigentes
+      # (quorum para formar grupos, una tutoria por turno, frecuencia por demanda,
+      # grupos aprobados con ubicacion).
+      - ./db/036_datos_operativos.sql:/docker-entrypoint-initdb.d/036_datos_operativos.sql:ro
+      # 037: una tutoria por estudiante, tope de grupos por tutor y periodos de un mes.
+      - ./db/037_carga_por_periodo.sql:/docker-entrypoint-initdb.d/037_carga_por_periodo.sql:ro
+      # 038 reemplaza los datos de 036 por otros generados con las reglas de 037 y el
+      # calendario UPDS (Tutorias Julio 2026 cerrado, Tutorias Enero 2027 activo).
+      - ./db/038_datos_operativos.sql:/docker-entrypoint-initdb.d/038_datos_operativos.sql:ro
+      # 039: la coordinacion asigna tutor a una materia (el tutor acepta), cambia el
+      # tutor de un grupo e inscribe o retira estudiantes a mano.
+      - ./db/039_gestion_manual_grupos.sql:/docker-entrypoint-initdb.d/039_gestion_manual_grupos.sql:ro
+      - ./db/040_ofertas_por_periodo.sql:/docker-entrypoint-initdb.d/040_ofertas_por_periodo.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s

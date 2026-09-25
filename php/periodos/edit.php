@@ -10,18 +10,17 @@ $periodo = $id ? $controller->find($id) : null;
 
 if (!$periodo) {
     http_response_code(404);
-    exit('Periodo no encontrada.');
+    exit('Período no encontrado.');
 }
 
-$data = [
-    'id_periodo' => $periodo['id_periodo'],
-    'nombre' => $periodo['nombre'],
-    'fecha_inicio' => $periodo['fecha_inicio'],
-    'fecha_fin' => $periodo['fecha_fin'],
-    'cupo_min_grupo' => $periodo['cupo_min_grupo'],
-    'cupo_max_default' => $periodo['cupo_max_default'],
-    'estado' => $periodo['estado'],
-];
+// Un periodo cerrado es historial: se consulta, no se edita.
+if ($periodo['estado'] === 'cerrada') {
+    header('Location: ' . app_url('periodos/ver.php?id=' . (int) $id));
+    exit;
+}
+
+$editables = $controller->camposEditables($periodo);
+$data = $periodo;
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         [$data, $errors] = $controller->update($id, $_POST);
         $data['id_periodo'] = $id;
+        $data['estado'] = $periodo['estado'];
         if (!$errors) {
             header('Location: ' . app_url('periodos/?message=updated'));
             exit;

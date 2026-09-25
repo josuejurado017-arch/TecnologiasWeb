@@ -5,13 +5,21 @@ declare(strict_types=1);
 /**
  * Motor de asignacion automatica: el estudiante declara materias y el sistema
  * lo coloca en un grupo compatible (existente o nuevo) respetando cupo y conflictos.
- * Reglas deterministas: cupo libre + sin solape de horario del estudiante,
- * del tutor y del aula.
+ * Reglas deterministas: cupo libre + una sola tutoria por turno para el estudiante
+ * y para el tutor (sin importar los dias: un grupo reducido debe poder pasar a
+ * Lunes a Viernes).
  *
- * Al crear un grupo nuevo, los horarios salen unicamente de lo que el tutor
- * configuro para esa materia en "Mis materias" (TutorMateriaConfig: turnos x dias,
- * franjas de sabado, modalidad, cupo recomendado). Un tutor sin horarios
- * configurados para la materia no ofrece grupos en ella.
+ * Al crear un grupo nuevo, el horario (turno) sale de la oferta aprobada del
+ * tutor para esa materia (TutorMateriaConfig: turnos, modalidad, cupo
+ * recomendado) y los dias de la regla institucional de frecuencia por demanda
+ * (Grupo::diasPorDemanda, db/033). Un tutor sin oferta aprobada para la materia
+ * no ofrece grupos en ella.
+ *
+ * El motor no reserva aulas (db/029): no conoce la ocupacion real de la
+ * universidad. La modalidad sale de la materia, el tutor y el periodo
+ * (TutorMateriaConfig::resolverModalidad), el grupo recibe el espacio
+ * predeterminado de esa modalidad y el aula o el enlace los registra la
+ * coordinacion al aprobarlo (GruposController::aprobar).
  */
 final class AsignacionController
 {
@@ -38,8 +46,46 @@ final class AsignacionController
     }
 
     /**
-     * Procesa la solicitud de apoyo del estudiante para varias materias.
-     * Devuelve un resumen por materia: [id_materia, nombre, resultado, detalle].
+     * Regla institucional: el estudiante lleva UNA sola tutoria por periodo (la
+     * tutoria coincide con la ultima materia del semestre y la UPDS permite dos
+     * materias al mes). Devuelve la materia que ya ocupa ese lugar, sea una
+     * inscripcion vigente o una solicitud en espera, o null si esta libre:
+     * ['id_materia', 'nombre', 'tipo' => 'inscripcion'|'espera'].
+     */
+    public function tutoriaDelPeriodo(int $studentId, int $periodoId): ?array
+    {
+        $inscritas = $this->inscripciones->studentMatterIds($studentId, $periodoId);
+        if ($inscritas !== []) {
+            return ['id_materia' => $inscritas[0], 'nombre' => $this->matterName($inscritas[0]), 'tipo' => 'inscripcion'];
+        }
+        $enEspera = array_keys($this->demanda->pendingForStudent($studentId, $periodoId));
+        if ($enEspera !== []) {
+            $id = (int) $enEspera[0];
+            return ['id_materia' => $id, 'nombre' => $this->matterName($id), 'tipo' => 'espera'];
+        }
+
+        return null;
+    }
+
+    /** Resultado 'ya_solicitada' cuando el estudiante ya tiene su tutoria del periodo. */
+    private function unaTutoria(int $matterId, array $actual): array
+    {
+        $mismo = $actual['id_materia'] === $matterId;
+        $detalle = $mismo
+            ? ($actual['tipo'] === 'inscripcion' ? 'Ya estás inscrito en esta materia.' : 'Ya tienes una solicitud en espera para esta materia.')
+            : sprintf(
+                'Solo puedes llevar una tutoría por período y ya tienes %s en %s.%s',
+                $actual['tipo'] === 'inscripcion' ? 'un grupo' : 'una solicitud',
+                $actual['nombre'],
+                $actual['tipo'] === 'espera' ? ' Para cambiar de materia, primero quítala de la espera.' : ''
+            );
+
+        return ['id_materia' => $matterId, 'nombre' => $this->matterName($matterId), 'resultado' => 'ya_solicitada', 'detalle' => $detalle];
+    }
+
+    /**
+     * Procesa la solicitud de apoyo del estudiante: una sola materia por periodo
+     * (tutoriaDelPeriodo). Devuelve un resumen: [[id_materia, nombre, resultado, detalle]].
      * Una materia sin oferta (sin tutor con horarios configurados) no pasa por el motor:
      * se registra como interes para que la universidad mida la demanda real.
      */
@@ -49,6 +95,14 @@ final class AsignacionController
         $cupoMin = (int) $periodo['cupo_min_grupo'];
         $cupoMax = (int) $periodo['cupo_max_default'];
         $results = [];
+
+        $matterIds = array_values(array_filter(array_map('intval', $matterIds), static fn (int $id): bool => $id > 0));
+        if (count($matterIds) > 1) {
+            return [['id_materia' => 0, 'nombre' => 'Solicitud', 'resultado' => 'ya_solicitada', 'detalle' => 'Solo puedes llevar una tutoría por período: elige una sola materia.']];
+        }
+        if ($matterIds !== [] && ($actual = $this->tutoriaDelPeriodo($studentId, $periodoId)) !== null) {
+            return [$this->unaTutoria($matterIds[0], $actual)];
+        }
 
         // Inscripciones activas + demanda pendiente: ninguna se vuelve a solicitar.
         $alreadyRequested = array_merge(
@@ -69,6 +123,7 @@ final class AsignacionController
 
             if (!$this->hasOffer($matterId, $periodoId)) {
                 $this->demanda->record($periodoId, $matterId, $studentId, Demanda::MOTIVO_SIN_TUTOR);
+                $this->alertarCupoCompleto($periodoId, $matterId);
                 $results[] = ['id_materia' => $matterId, 'nombre' => $name, 'resultado' => 'interes_registrado', 'detalle' => 'Esta materia aun no tiene tutor. Tu interes quedo registrado y te avisaremos si se abre un grupo.'];
                 $alreadyRequested[] = $matterId;
                 continue;
@@ -94,11 +149,8 @@ final class AsignacionController
         $periodoId = (int) $periodo['id_periodo'];
         $name = $this->matterName($matterId);
 
-        if (in_array($matterId, $this->inscripciones->studentMatterIds($studentId, $periodoId), true)) {
-            return ['id_materia' => $matterId, 'nombre' => $name, 'resultado' => 'ya_solicitada', 'detalle' => 'Ya estas inscrito en un grupo de esta materia.'];
-        }
-        if (isset($this->demanda->pendingForStudent($studentId, $periodoId)[$matterId])) {
-            return ['id_materia' => $matterId, 'nombre' => $name, 'resultado' => 'ya_solicitada', 'detalle' => 'Ya registraste interes en esta materia.'];
+        if (($actual = $this->tutoriaDelPeriodo($studentId, $periodoId)) !== null) {
+            return $this->unaTutoria($matterId, $actual);
         }
         if ($this->hasOffer($matterId, $periodoId)) {
             // Tiene oferta: corresponde solicitar apoyo, no registrar interes.
@@ -106,6 +158,7 @@ final class AsignacionController
         }
 
         $this->demanda->record($periodoId, $matterId, $studentId, Demanda::MOTIVO_SIN_TUTOR);
+        $this->alertarCupoCompleto($periodoId, $matterId);
 
         return ['id_materia' => $matterId, 'nombre' => $name, 'resultado' => 'interes_registrado', 'detalle' => 'Tu interes quedo registrado. Te avisaremos si se abre un grupo.'];
     }
@@ -202,10 +255,10 @@ final class AsignacionController
                     // Un grupo recien creado tiene cupo: los siguientes de la cola lo aprovechan en la misma pasada.
                 } else {
                     $summary['pendientes']++;
-                    // Aparecio tutor pero sigue sin horario compatible: el motivo cambia. Un
-                    // 'grupo_cancelado' se conserva: es la senal que el admin necesita ver.
-                    if ($pending['motivo'] === Demanda::MOTIVO_SIN_TUTOR) {
-                        $this->demanda->updateMotivo($periodoId, $matterId, $studentId, Demanda::MOTIVO_SIN_HORARIO);
+                    // Sigue sin grupo: el motivo se actualiza (esperando companeros o sin
+                    // horario). Un 'grupo_cancelado' se conserva: es la senal que el admin necesita ver.
+                    if ($pending['motivo'] !== Demanda::MOTIVO_GRUPO_CANCELADO && isset($outcome['motivo'])) {
+                        $this->demanda->updateMotivo($periodoId, $matterId, $studentId, $outcome['motivo']);
                     }
                 }
             }
@@ -236,7 +289,7 @@ final class AsignacionController
             return true;
         }
 
-        return (new TutorMateriaConfig())->preferencesForMatter($matterId) !== [];
+        return (new TutorMateriaConfig())->hasApprovedOffer($matterId);
     }
 
     private function assignMatter(int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, bool $reprocessing = false, bool $allowCreate = true): array
@@ -245,32 +298,60 @@ final class AsignacionController
 
         // 1) Intentar grupos existentes con cupo.
         foreach ($this->grupos->candidatesForMatter($periodoId, $matterId) as $candidate) {
-            if ($this->overlapsBusy($busy, $candidate['dia_semana'], $candidate['hora_inicio'], $candidate['hora_fin'])) {
+            if ($this->ocupaTurno($busy, $candidate['hora_inicio'], $candidate['hora_fin'])) {
                 continue;
             }
             $group = $this->enrollInExisting((int) $candidate['id_grupo'], $studentId, $cupoMin);
             if ($group !== null) {
                 $this->demanda->markAttended($periodoId, $matterId, $studentId);
                 $this->emitNotifications($group, $studentId, $cupoMin);
-                return ['resultado' => 'asignado', 'detalle' => $this->describe($group)];
+                $this->alertarCupoCompleto($periodoId, $matterId);
+                return ['resultado' => 'asignado', 'detalle' => $this->describeForStudent($group)];
             }
         }
 
-        // 2) Crear un grupo nuevo desde los horarios que un tutor configuro para la materia.
-        $group = $allowCreate ? $this->createGroupForMatter($studentId, $matterId, $periodoId, $cupoMin, $cupoMax, $busy) : null;
+        // 2) Formar un grupo nuevo si hay quorum (minimo del periodo) en algun turno.
+        [$group, $hayTurno, $reunidos] = $allowCreate
+            ? $this->formarGrupo($studentId, $matterId, $periodoId, $cupoMin, $cupoMax, $busy)
+            : [null, false, 0];
         if ($group !== null) {
             $this->demanda->markAttended($periodoId, $matterId, $studentId);
             $this->emitNotifications($group, $studentId, $cupoMin);
-            return ['resultado' => 'grupo_creado', 'detalle' => $this->describe($group)];
+            return ['resultado' => 'grupo_creado', 'detalle' => $this->describeForStudent($group)];
         }
 
-        // 3) Demanda insatisfecha: hay oferta pero ningun horario/aula compatible.
+        // 3) Sin grupo: interes registrado. Si hay tutor libre en un turno del estudiante,
+        // espera companeros; si no, espera un horario compatible.
         // En reproceso la fila ya existe y su motivo lo administra reprocesarMateria().
+        $motivo = $hayTurno ? Demanda::MOTIVO_ESPERANDO : Demanda::MOTIVO_SIN_HORARIO;
         if (!$reprocessing) {
-            $this->demanda->record($periodoId, $matterId, $studentId, Demanda::MOTIVO_SIN_HORARIO);
+            $this->demanda->record($periodoId, $matterId, $studentId, $motivo);
         }
+        $this->alertarCupoCompleto($periodoId, $matterId);
+        $detalle = $hayTurno
+            ? sprintf('Interés registrado: el grupo se abre cuando haya %d estudiantes en tu turno (hoy: %d). Te avisaremos cuando se forme.', $cupoMin, $reunidos)
+            : 'Hay tutor para esta materia, pero ningún horario compatible con tu agenda por ahora. Quedaste en lista de espera.';
 
-        return ['resultado' => 'lista_espera', 'detalle' => 'Hay tutor para esta materia, pero ningun horario compatible con tu agenda ni aula libre por ahora. Quedaste en lista de espera.'];
+        return ['resultado' => 'lista_espera', 'motivo' => $motivo, 'detalle' => $detalle];
+    }
+
+    private function alertarCupoCompleto(int $periodoId, int $materiaId): void
+    {
+        try {
+            $pdo = Database::connection();
+            $stmt = $pdo->prepare("SELECT id_grupo, hora_inicio FROM grupos_tutoria
+                WHERE id_periodo = :p AND id_materia = :m AND estado IN ('por_aprobar','formacion','confirmado','en_curso')
+                  AND cupo_ocupado >= cupo_max AND EXISTS
+                    (SELECT 1 FROM demanda_tutoria d WHERE d.id_periodo = :p2 AND d.id_materia = :m2 AND d.estado = 'pendiente')");
+            $stmt->execute(['p' => $periodoId, 'm' => $materiaId, 'p2' => $periodoId, 'm2' => $materiaId]);
+            foreach ($stmt->fetchAll() as $grupo) {
+                $turno = TutorMateriaConfig::turnoDeHora((string) $grupo['hora_inicio']);
+                (new Notificacion())->notifyAdminsCupoCompleto($pdo, (int) $grupo['id_grupo'], $this->matterName($materiaId),
+                    TutorMateriaConfig::TURNOS[$turno]['label'] ?? substr((string) $grupo['hora_inicio'], 0, 5));
+            }
+        } catch (Throwable $exception) {
+            error_log('Alerta cupo completo: ' . $exception->getMessage());
+        }
     }
 
     /** Inscribe al estudiante en un grupo existente con bloqueo de cupo. Devuelve datos del grupo o null. */
@@ -281,7 +362,7 @@ final class AsignacionController
         try {
             $grupo = $this->grupos->lockForEnroll($grupoId);
             if ($grupo === null
-                || !in_array($grupo['estado'], ['formacion', 'confirmado'], true)
+                || !in_array($grupo['estado'], ['por_aprobar', 'formacion', 'confirmado', 'en_curso'], true)
                 || (int) $grupo['cupo_ocupado'] >= (int) $grupo['cupo_max']
                 || $this->inscripciones->existsActive($grupoId, $studentId)) {
                 $connection->rollBack();
@@ -300,116 +381,142 @@ final class AsignacionController
     }
 
     /**
-     * Busca un patron semanal (tutor+turno+aula) libre y crea el grupo, inscribiendo
-     * al estudiante. Un "patron" es el conjunto de dias que el tutor declaro para un
-     * turno en esa materia (TutorMateriaConfig); la frecuencia final se ajusta segun
-     * la demanda pendiente de la materia y se degrada dia por dia si no hay tutor o
-     * aula libres para el patron completo (ver diasParaFrecuencia/intentarPatron).
+     * Forma un grupo nuevo solo con quorum (db/035): el estudiante mas los que ya
+     * esperan la materia y estan libres en ese turno deben sumar al menos el minimo
+     * del periodo (cupo_min_grupo, por defecto 3). Con menos no se crea nada: quedan
+     * como "interes registrado" esperando companeros.
+     * Se evalua cada bloque (tutor, turno) con oferta aprobada, libre para el tutor y
+     * para el estudiante; gana el que reune mas estudiantes. La frecuencia sale de
+     * cuantos forman el grupo (Grupo::diasPorDemanda): menos de 8 -> LMV (la
+     * coordinacion puede pasarlo a MJS), 8 o mas -> Lunes a Viernes.
+     * Devuelve [grupo|null, hay un turno compatible, estudiantes reunidos en el mejor turno].
      */
-    private function createGroupForMatter(int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, array $busy): ?array
+    private function formarGrupo(int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, array $busy): array
     {
-        $patterns = $this->agruparPatrones((new TutorMateriaConfig())->slotsForMatter($matterId));
-
         $periodo = (new Periodo())->findById($periodoId);
         if ($periodo === null) {
-            return null;
+            return [null, false, 0];
+        }
+        $mejor = $this->mejorBloque($studentId, $matterId, $periodoId, $cupoMax, $busy);
+        if ($mejor === null) {
+            return [null, false, 0];
+        }
+        $reunidos = 1 + count($mejor['companeros']);
+        if ($reunidos < $cupoMin) {
+            return [null, true, $reunidos];
         }
 
-        // Demanda pendiente de la materia (incluye a este estudiante): proxy del
-        // tamano final del grupo para decidir la frecuencia semanal (punto 8 del
-        // analisis: se evalua solo al crear, nunca se recalcula despues).
-        $demanda = 1 + ($this->demanda->pendingCountByMatter($periodoId)[$matterId] ?? 0);
-
-        foreach ($patterns as $pattern) {
-            $grupoId = $this->intentarPatron($pattern, $demanda, $studentId, $matterId, $periodoId, $cupoMin, $cupoMax, $busy, $periodo);
-            if ($grupoId !== null) {
-                return $this->groupDetail($grupoId);
+        $dias = Grupo::diasPorDemanda($reunidos)[0];
+        $grupoId = $this->confirmarGrupo($mejor['bloque'], $dias, array_merge([$studentId], $mejor['companeros']), $matterId, $periodoId, $cupoMin, $cupoMax, $periodo);
+        if ($grupoId === null) {
+            return [null, true, $reunidos];
+        }
+        $grupo = $this->groupDetail($grupoId);
+        // Los companeros que esperaban reciben su grupo: su demanda queda atendida.
+        foreach ($mejor['companeros'] as $id) {
+            $this->demanda->markAttended($periodoId, $matterId, $id);
+            if ($grupo !== null) {
+                $this->notifyDemandAttended($id, $matterId, $this->describeForStudent($grupo));
             }
         }
 
-        return null;
-    }
-
-    /** Agrupa los bloques por (tutor, horario, modalidad, cupo): mismo turno real, dias candidatos del patron. */
-    private function agruparPatrones(array $expanded): array
-    {
-        $patterns = [];
-        foreach ($expanded as $slot) {
-            $key = implode('|', [
-                $slot['id_tutor'], $slot['hora_inicio'], $slot['hora_fin'],
-                $slot['modalidad_preferida'] ?? '', $slot['cupo_recomendado'] ?? '',
-            ]);
-            $patterns[$key] ??= [
-                'id_tutor' => (int) $slot['id_tutor'],
-                'hora_inicio' => $slot['hora_inicio'],
-                'hora_fin' => $slot['hora_fin'],
-                'modalidad_preferida' => $slot['modalidad_preferida'],
-                'cupo_recomendado' => $slot['cupo_recomendado'],
-                'dias' => [],
-            ];
-            $patterns[$key]['dias'][] = $slot['dia_semana'];
-        }
-
-        return array_values($patterns);
+        return [$grupo, true, $reunidos];
     }
 
     /**
-     * Frecuencia semanal recomendada segun demanda pendiente de la materia:
-     * menos de 8 -> grupo reducido, prefiere Lunes/Miercoles/Viernes o
-     * Martes/Jueves/Sabado (el que mejor coincida con lo que el tutor declaro);
-     * 8 o mas -> usa el patron completo que el tutor declaro para ese turno (ya es
-     * "la frecuencia estandar": lo que el propio tutor configuro). Nunca se inventan
-     * dias que el tutor no declaro en Mis materias.
+     * Avance del interes de un estudiante que espera una materia (pantallas de
+     * solicitud y Mis tutorias): cuantos estudiantes, contandolo a el, reuniria hoy
+     * el mejor turno compatible. null si no hay tutor libre en ningun turno suyo.
      */
-    private function diasParaFrecuencia(array $diasDeclarados, int $demanda): array
+    public function progresoInteres(int $studentId, int $matterId, int $periodoId, int $cupoMax): ?int
     {
-        if ($demanda >= 8) {
-            return $diasDeclarados;
-        }
-        foreach ([['Lunes', 'Miercoles', 'Viernes'], ['Martes', 'Jueves', 'Sabado']] as $preset) {
-            $match = array_values(array_intersect($preset, $diasDeclarados));
-            if (count($match) >= 2) {
-                return $match;
+        $mejor = $this->mejorBloque($studentId, $matterId, $periodoId, $cupoMax, $this->inscripciones->studentBusySlots($studentId, $periodoId));
+
+        return $mejor === null ? null : 1 + count($mejor['companeros']);
+    }
+
+    /**
+     * Bloque (tutor, turno) con oferta aprobada, libre para el tutor (sin llegar a su
+     * tope de grupos del periodo) y para el estudiante, que reune mas companeros en
+     * espera; null si no hay ninguno compatible.
+     * Devuelve ['bloque' => ..., 'companeros' => [id_estudiante...]].
+     */
+    private function mejorBloque(int $studentId, int $matterId, int $periodoId, int $cupoMax, array $busy): ?array
+    {
+        // Combinaciones (tutor, horario) que la coordinacion ya rechazo para esta materia
+        // en el periodo: no se vuelven a proponer (db/028, grupo_rechazos).
+        $rechazados = $this->grupos->rejectedSlotKeys($periodoId, $matterId);
+        $bloques = array_values(array_filter(
+            (new TutorMateriaConfig())->slotsForMatter($matterId),
+            static fn (array $b): bool => !isset($rechazados[Grupo::slotKey($b['id_tutor'], $b['hora_inicio'], $b['hora_fin'])])
+        ));
+
+        // Companeros posibles: quienes esperan esta materia (en orden de llegada) y aun
+        // no tienen grupo en ella.
+        $esperando = [];
+        foreach ($this->demanda->pendingForMatter($periodoId, $matterId) as $pendiente) {
+            $id = (int) $pendiente['id_estudiante'];
+            if ($id === $studentId || in_array($matterId, $this->inscripciones->studentMatterIds($id, $periodoId), true)) {
+                continue;
             }
+            $esperando[$id] = $this->inscripciones->studentBusySlots($id, $periodoId);
         }
 
-        return $diasDeclarados;
-    }
+        // Tope de carga del tutor (db/037): como maximo max_grupos_tutor grupos en el
+        // periodo, siempre en turnos distintos (tutorOcupaTurno).
+        $periodo = (new Periodo())->findById($periodoId);
+        $maxGrupos = min(2, (int) ($periodo['max_grupos_tutor'] ?? 2));
+        $tutoresLlenos = [];
 
-    /**
-     * Intenta crear el grupo con el patron completo recomendado; si hay conflicto de
-     * tutor, aula o agenda del estudiante, degrada quitando un dia a la vez (el mas
-     * reciente del patron) hasta encontrar una combinacion viable o agotar los dias.
-     */
-    private function intentarPatron(array $pattern, int $demanda, int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, array $busy, array $periodo): ?int
-    {
-        $dias = $this->diasParaFrecuencia($pattern['dias'], $demanda);
-
-        while ($dias !== []) {
-            $sinConflicto = !$this->overlapsBusyAny($busy, $dias, $pattern['hora_inicio'], $pattern['hora_fin'])
-                && !$this->grupos->tutorHasConflict($pattern['id_tutor'], $dias, $pattern['hora_inicio'], $pattern['hora_fin'], $periodoId);
-
-            if ($sinConflicto) {
-                $aula = $this->grupos->findFreeAula($dias, $pattern['hora_inicio'], $pattern['hora_fin'], $periodoId, $pattern['modalidad_preferida']);
-                if ($aula !== null) {
-                    $grupoId = $this->confirmarGrupo($pattern, $dias, $aula, $studentId, $matterId, $periodoId, $cupoMin, $cupoMax, $periodo);
-                    if ($grupoId !== null) {
-                        return $grupoId;
-                    }
+        $mejor = null;
+        foreach ($bloques as $bloque) {
+            $tutorId = $bloque['id_tutor'];
+            $tutoresLlenos[$tutorId] ??= $this->grupos->countTutorGrupos($tutorId, $periodoId) >= $maxGrupos;
+            if ($tutoresLlenos[$tutorId]
+                || $this->ocupaTurno($busy, $bloque['hora_inicio'], $bloque['hora_fin'])
+                || $this->grupos->tutorOcupaTurno($tutorId, $bloque['hora_inicio'], $bloque['hora_fin'], $periodoId)) {
+                continue;
+            }
+            $cupoGrupo = $bloque['cupo_recomendado'] !== null ? min($cupoMax, $bloque['cupo_recomendado']) : $cupoMax;
+            $companeros = [];
+            foreach ($esperando as $id => $ocupado) {
+                if (count($companeros) >= $cupoGrupo - 1) {
+                    break;
+                }
+                if (!$this->ocupaTurno($ocupado, $bloque['hora_inicio'], $bloque['hora_fin'])) {
+                    $companeros[] = $id;
                 }
             }
-
-            array_pop($dias);
+            if ($mejor === null || count($companeros) > count($mejor['companeros'])) {
+                $mejor = ['bloque' => $bloque, 'companeros' => $companeros];
+            }
         }
 
-        return null;
+        return $mejor;
     }
 
-    /** Crea el grupo con el patron de dias ya validado, genera sus sesiones e inscribe al estudiante. */
-    private function confirmarGrupo(array $pattern, array $dias, array $aula, int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, array $periodo): ?int
+    /** Crea el grupo por aprobar con el patron de dias ya decidido e inscribe a los estudiantes que lo forman. */
+    private function confirmarGrupo(array $pattern, array $dias, array $studentIds, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, array $periodo): ?int
     {
-        $modalidad = $aula['tipo'] === 'virtual' ? 'virtual' : 'presencial';
-        $cupoGrupo = min($cupoMax, (int) $aula['capacidad']);
+        // Modalidad academica (materia > tutor > regla del periodo), nunca la de un aula.
+        $modalidad = TutorMateriaConfig::resolverModalidad(
+            (string) $pattern['modalidad_requerida'],
+            (string) ($pattern['modalidad_preferida'] ?? 'ambas'),
+            (string) ($periodo['modalidad_ambas'] ?? 'virtual')
+        );
+        if ($modalidad === null) {
+            return null;
+        }
+        // Espacio provisional: el predeterminado de la modalidad. La ubicacion real
+        // (espacio, aula o enlace) la define la coordinacion al revisar el grupo;
+        // la oferta del tutor no lleva espacio (db/034).
+        $espacio = (new EspacioTutoria())->predeterminado($modalidad);
+        if ($espacio === null) {
+            error_log('Sin espacio de tutoria activo para la modalidad ' . $modalidad . '.');
+            return null;
+        }
+        // Cupo: regla del periodo y, si el tutor la declaro, su capacidad recomendada.
+        $cupoGrupo = $cupoMax;
         if ($pattern['cupo_recomendado'] !== null) {
             $cupoGrupo = min($cupoGrupo, $pattern['cupo_recomendado']);
         }
@@ -417,37 +524,66 @@ final class AsignacionController
         $connection = Database::connection();
         $connection->beginTransaction();
         try {
+            $lockTutor = $connection->prepare('SELECT id_tutor FROM tutores WHERE id_tutor = :t FOR UPDATE');
+            $lockTutor->execute(['t' => $pattern['id_tutor']]);
+            if ($this->grupos->countTutorGrupos((int) $pattern['id_tutor'], $periodoId) >= min(2, (int) $periodo['max_grupos_tutor'])
+                || $this->grupos->tutorOcupaTurno((int) $pattern['id_tutor'], (string) $pattern['hora_inicio'], (string) $pattern['hora_fin'], $periodoId)
+                || !in_array($periodo['estado'], ['activa'], true)) {
+                $connection->rollBack();
+                return null;
+            }
             $grupoId = $this->grupos->create([
                 'id_periodo' => $periodoId,
                 'id_materia' => $matterId,
                 'id_tutor' => $pattern['id_tutor'],
-                'id_aula' => (int) $aula['id_aula'],
+                'id_espacio' => (int) $espacio['id_espacio'],
                 'modalidad' => $modalidad,
                 'dias' => $dias,
                 'hora_inicio' => $pattern['hora_inicio'],
                 'hora_fin' => $pattern['hora_fin'],
                 'cupo_max' => $cupoGrupo,
-                'estado' => 'formacion',
+                'estado' => 'por_aprobar',
             ]);
-            $this->grupos->generateSessions($grupoId, $dias, $periodo['fecha_inicio'], $periodo['fecha_fin']);
-            $this->inscripciones->create($grupoId, $studentId, 'inscrito', 'auto');
-            $this->grupos->registerEnrollment($grupoId, $cupoMin);
-            $this->historial->log($connection, $grupoId, 'creado', null, 'formacion', null, 'Grupo generado automaticamente por el sistema (' . implode('/', $dias) . ').');
+            // Las sesiones se generan al aprobar (GruposController::aprobar): un grupo
+            // por aprobar no tiene calendario ni asistencia.
+            foreach ($studentIds as $studentId) {
+                $this->inscripciones->create($grupoId, $studentId, 'inscrito', 'auto');
+                $this->grupos->registerEnrollment($grupoId, $cupoMin);
+            }
+            $this->historial->log($connection, $grupoId, 'creado', null, 'por_aprobar', null, sprintf(
+                'Grupo formado por el sistema con %d estudiantes (%s); espera la revisión de la coordinación.',
+                count($studentIds),
+                implode('/', $dias)
+            ));
             $connection->commit();
-
-            return $grupoId;
         } catch (Throwable $exception) {
             $connection->rollBack();
             error_log($exception->getMessage());
 
             return null;
         }
+
+        try {
+            $detail = $this->groupDetail($grupoId);
+            if ($detail !== null) {
+                (new Notificacion())->notifyAdminsGroupPending($connection, $grupoId, (string) $detail['nombre_materia'], $this->describe($detail));
+            }
+        } catch (Throwable $exception) {
+            error_log('Notificacion grupo por aprobar: ' . $exception->getMessage());
+        }
+
+        return $grupoId;
     }
 
-    private function overlapsBusyAny(array $busy, array $dias, string $horaInicio, string $horaFin): bool
+    /**
+     * Regla institucional: el estudiante tiene como maximo una tutoria por turno,
+     * sin importar los dias. Asi un grupo reducido puede pasar a Lunes a Viernes
+     * sin chocar con otra tutoria del mismo estudiante.
+     */
+    private function ocupaTurno(array $busy, string $horaInicio, string $horaFin): bool
     {
-        foreach ($dias as $dia) {
-            if ($this->overlapsBusy($busy, $dia, $horaInicio, $horaFin)) {
+        foreach ($busy as $slot) {
+            if ($slot['hora_inicio'] < $horaFin && $slot['hora_fin'] > $horaInicio) {
                 return true;
             }
         }
@@ -462,7 +598,9 @@ final class AsignacionController
             $pdo = Database::connection();
             $notif = new Notificacion();
             $studentUserId = $this->studentUserId($studentId);
-            if ($studentUserId !== null) {
+            if ($studentUserId !== null && $group['estado'] === 'por_aprobar') {
+                $notif->notifyPreassignment($pdo, (int) $group['id_grupo'], $studentUserId, (string) $group['nombre_materia'], $this->describe($group));
+            } elseif ($studentUserId !== null) {
                 $notif->notifyAssignment($pdo, (int) $group['id_grupo'], $studentUserId, (string) $group['nombre_materia'], $this->describe($group));
             }
             // El grupo acaba de cruzar el cupo minimo con esta inscripcion.
@@ -484,25 +622,14 @@ final class AsignacionController
         return $id === false ? null : (int) $id;
     }
 
-    private function overlapsBusy(array $busy, string $dia, string $horaInicio, string $horaFin): bool
-    {
-        foreach ($busy as $slot) {
-            if ($slot['dia_semana'] === $dia && $slot['hora_inicio'] < $horaFin && $slot['hora_fin'] > $horaInicio) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private function groupDetail(int $grupoId): ?array
     {
         $statement = Database::connection()->prepare(
             "SELECT g.id_grupo, g.cupo_ocupado, g.estado, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad,
-                    m.nombre_materia, a.nombre AS aula, CONCAT(u.nombre, ' ', u.apellido) AS tutor
+                    g.ubicacion, g.enlace, m.nombre_materia, e.nombre AS espacio, CONCAT(u.nombre, ' ', u.apellido) AS tutor
              FROM grupos_tutoria g
              INNER JOIN materias m ON m.id_materia = g.id_materia
-             INNER JOIN aulas a ON a.id_aula = g.id_aula
+             INNER JOIN espacios_tutoria e ON e.id_espacio = g.id_espacio
              INNER JOIN tutores t ON t.id_tutor = g.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
              WHERE g.id_grupo = :id LIMIT 1"
@@ -532,15 +659,30 @@ final class AsignacionController
     {
         $dias = !empty($group['dias']) ? implode('/', $group['dias']) : $group['dia_semana'];
 
+        // El enlace no viaja en notificaciones: se ve en "Mis tutorias" una vez aprobado el grupo.
+        $lugar = $group['modalidad'] === 'presencial' && !ubicacion_pendiente($group)
+            ? $group['espacio'] . ': ' . $group['ubicacion']
+            : $group['espacio'] . (ubicacion_pendiente($group) ? ', ubicación por confirmar' : '');
+
         return sprintf(
             'Tutor %s · %s %s-%s · %s (%s)',
             $group['tutor'],
             $dias,
             substr((string) $group['hora_inicio'], 0, 5),
             substr((string) $group['hora_fin'], 0, 5),
-            $group['aula'],
-            ucfirst((string) $group['modalidad'])
+            ucfirst((string) $group['modalidad']),
+            $lugar
         );
+    }
+
+    /** Descripcion para el estudiante: aclara si el grupo aun espera el visto bueno. */
+    private function describeForStudent(array $group): string
+    {
+        $texto = $this->describe($group);
+
+        return $group['estado'] === 'por_aprobar'
+            ? $texto . ' — Preasignado: pendiente de aprobación de la coordinación académica.'
+            : $texto;
     }
 
     private function matterName(int $matterId): string

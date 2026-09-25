@@ -2,7 +2,7 @@
 
 require dirname(__DIR__, 2) . '/includes/bootstrap.php';
 Auth::requireRole('administrador');
-$title = 'Reportes por campana';
+$title = 'Reportes por período';
 $activePage = 'reportes-campania';
 
 $periodoModel = new Periodo();
@@ -22,6 +22,7 @@ if ($periodo) {
         'topTutores' => $reporte->topTutores($pid),
         'topMaterias' => $reporte->topMaterias($pid),
         'topCarreras' => $reporte->topCarreras($pid),
+        'espacios' => $reporte->gruposPorEspacio($pid),
         'asistencia' => $reporte->attendanceBreakdown($pid),
         'satisfaccion' => $reporte->satisfaction($pid),
         'coberturaTutores' => $reporte->coberturaTutores(),

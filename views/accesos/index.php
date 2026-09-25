@@ -3,7 +3,7 @@
 <main class="container">
     <div class="page-heading">
         <div><h1>Registro de accesos</h1><p>Auditoria de los intentos de inicio de sesion.</p></div>
-        <div class="page-heading-actions"><a class="button" href="<?= e($exportUrl) ?>">Descargar CSV</a></div>
+        <div class="page-heading-actions"><a class="button" href="<?= e($exportUrl) ?>">Descargar Excel</a></div>
     </div>
     <?php if ($filterError !== ''): ?><p class="alert" role="alert"><?= e($filterError) ?></p><?php endif; ?>
     <form class="access-filter card" method="get" action="<?= e(app_url('accesos/')) ?>">

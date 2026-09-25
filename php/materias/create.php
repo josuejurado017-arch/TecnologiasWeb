@@ -6,7 +6,7 @@ $activePage = 'materias';
 
 $controller = new MateriasController();
 $carreras = $controller->careers();
-$data = ['nombre_materia' => '', 'id_carrera' => null];
+$data = ['nombre_materia' => '', 'id_carrera' => null, 'modalidad_requerida' => 'libre'];
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

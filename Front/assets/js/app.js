@@ -194,4 +194,75 @@ document.addEventListener('DOMContentLoaded', () => {
         start.addEventListener('input', validateTimes);
         end.addEventListener('input', validateTimes);
     });
+
+    // Mis materias: al menos un turno por materia (la validacion final esta en el servidor).
+    document.querySelectorAll('.materia-form').forEach((form) => {
+        const turnos = [...form.querySelectorAll('input[name="turnos[]"]')];
+        if (!turnos.length) return;
+        const sync = () => {
+            const alguno = turnos.some((turno) => turno.checked);
+            turnos[0].setCustomValidity(alguno ? '' : 'Selecciona al menos un turno.');
+        };
+        turnos.forEach((turno) => turno.addEventListener('change', sync));
+        sync();
+    });
+
+    // Solicitar apoyo: buscador de materias o tutores, barra con la materia elegida y perfil del tutor.
+    const offerSearch = document.querySelector('[data-offer-search]');
+    if (offerSearch) {
+        const cards = [...document.querySelectorAll('[data-offer-card]')];
+        const sections = [...document.querySelectorAll('[data-offer-section]')];
+        const vacio = document.querySelector('[data-offer-vacio]');
+        offerSearch.addEventListener('input', () => {
+            const query = offerSearch.value.trim().toLowerCase();
+            cards.forEach((card) => { card.hidden = query !== '' && !card.dataset.buscar.includes(query); });
+            sections.forEach((section) => {
+                const visibles = section.querySelectorAll('[data-offer-card]:not([hidden])').length;
+                section.hidden = visibles === 0;
+                if (query !== '' && visibles > 0 && section.tagName === 'DETAILS') section.open = true;
+            });
+            if (vacio) vacio.hidden = query === '' || cards.some((card) => !card.hidden);
+        });
+    }
+
+    document.querySelectorAll('[data-solicitar]').forEach((form) => {
+        const elegida = form.querySelector('[data-elegida]');
+        const enviar = form.querySelector('[data-solicitar-enviar]');
+        if (!elegida || !enviar) return;
+        form.querySelectorAll('input[name="materias[]"]').forEach((radio) => {
+            radio.addEventListener('change', () => {
+                elegida.innerHTML = '';
+                elegida.append('Materia elegida: ');
+                const nombre = document.createElement('strong');
+                nombre.textContent = radio.dataset.materia;
+                elegida.append(nombre);
+                enviar.disabled = false;
+            });
+        });
+    });
+
+    document.querySelectorAll('[data-tutor-perfil]').forEach((button) => {
+        const dialog = document.getElementById(button.dataset.tutorPerfil);
+        if (!dialog || typeof dialog.showModal !== 'function') return;
+        button.addEventListener('click', () => dialog.showModal());
+        // Clic fuera del contenido cierra el perfil.
+        dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    });
+
+    // Revisar grupo: al cambiar la modalidad se muestra el aula (presencial) o el enlace (virtual).
+    document.querySelectorAll('[data-modalidad-grupo]').forEach((select) => {
+        const form = select.closest('form');
+        const sync = () => {
+            form.querySelectorAll('[data-campo-modalidad]').forEach((campo) => {
+                const activo = campo.dataset.campoModalidad === select.value;
+                campo.hidden = !activo;
+                campo.querySelectorAll('input').forEach((input) => {
+                    input.disabled = !activo;
+                    input.required = activo;
+                });
+            });
+        };
+        select.addEventListener('change', sync);
+        sync();
+    });
 });

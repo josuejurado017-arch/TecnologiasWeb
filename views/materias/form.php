@@ -24,6 +24,13 @@ require __DIR__ . '/../layouts/header.php';
                     </option>
                 <?php endforeach; ?>
             </select>
+            <label for="modalidad_requerida">Modalidad requerida</label>
+            <select id="modalidad_requerida" name="modalidad_requerida" aria-describedby="modalidad_requerida_ayuda">
+                <?php foreach (Materia::MODALIDADES_REQUERIDAS as $value => $label): ?>
+                    <option value="<?= e($value) ?>" <?= ($data['modalidad_requerida'] ?? 'libre') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <p class="form-hint" id="modalidad_requerida_ayuda">Con "Libre", la modalidad sale de la configuración de cada tutor. Si la materia exige una modalidad, el sistema solo abre grupos en ella y los tutores con otra configuración dejan de recibir grupos de esta materia hasta ajustarla.</p>
             <button type="submit">Guardar</button>
             <a class="button secondary" href="<?= e(app_url('materias/')) ?>">Cancelar</a>
         </form>

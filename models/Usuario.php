@@ -86,6 +86,51 @@ final class Usuario
         $statement->execute($fields);
     }
 
+    /**
+     * Actualiza solo los datos de la persona (no el rol, el usuario ni la
+     * contrasena). Lo usan los modulos Estudiantes y Tutores, que editan el
+     * perfil academico junto con los datos personales de su cuenta.
+     */
+    public function updateIdentity(int $id, array $data): void
+    {
+        $statement = Database::connection()->prepare(
+            'UPDATE usuarios SET nombre = :nombre, apellido = :apellido, correo = :correo,
+             telefono = :telefono, carnet_identidad = :carnet_identidad, estado = :estado
+             WHERE id_usuario = :id_usuario'
+        );
+        $statement->execute([
+            'id_usuario' => $id,
+            'nombre' => $data['nombre'],
+            'apellido' => $data['apellido'],
+            'correo' => $data['correo'],
+            'telefono' => $data['telefono'] !== '' ? $data['telefono'] : null,
+            'carnet_identidad' => $data['carnet_identidad'] !== '' ? $data['carnet_identidad'] : null,
+            'estado' => $data['estado'],
+        ]);
+    }
+
+    /** El correo ya pertenece a OTRA cuenta (indice unico usuarios.correo). */
+    public function correoTaken(string $correo, int $exceptUserId): bool
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT 1 FROM usuarios WHERE correo = :correo AND id_usuario <> :id LIMIT 1'
+        );
+        $statement->execute(['correo' => $correo, 'id' => $exceptUserId]);
+
+        return (bool) $statement->fetchColumn();
+    }
+
+    /** El carnet ya pertenece a OTRA cuenta (indice unico uq_usuario_ci). */
+    public function carnetTaken(string $carnet, int $exceptUserId): bool
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT 1 FROM usuarios WHERE carnet_identidad = :carnet AND id_usuario <> :id LIMIT 1'
+        );
+        $statement->execute(['carnet' => $carnet, 'id' => $exceptUserId]);
+
+        return (bool) $statement->fetchColumn();
+    }
+
     public function deactivate(int $id): bool
     {
         $statement = Database::connection()->prepare(

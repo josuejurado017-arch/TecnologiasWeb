@@ -18,6 +18,7 @@ $data = [
     'id_materia' => $subject['id_materia'],
     'nombre_materia' => $subject['nombre_materia'],
     'id_carrera' => $subject['id_carrera'],
+    'modalidad_requerida' => $subject['modalidad_requerida'],
 ];
 $errors = [];
 
@@ -25,10 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
         $errors[] = 'La sesión del formulario no es válida. Recargue la página.';
     } else {
-        [$data, $errors] = $controller->update($id, $_POST);
+        [$data, $errors, $incompatibles] = $controller->update($id, $_POST);
         $data['id_materia'] = $id;
         if (!$errors) {
-            header('Location: ' . app_url('materias/?message=updated'));
+            $query = $incompatibles > 0 ? 'message=updated_incompatibles&tutores=' . $incompatibles : 'message=updated';
+            header('Location: ' . app_url('materias/?' . $query));
             exit;
         }
     }

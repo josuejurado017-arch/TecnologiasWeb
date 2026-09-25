@@ -8,6 +8,9 @@
         </div>
     </div>
 
+    <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>
+    <?php if (!empty($error)): ?><p class="alert" role="alert"><?= e($error) ?></p><?php endif; ?>
+
     <?php if (!$periodo): ?>
         <p class="alert" role="alert">No hay un período de tutoría activo.</p>
     <?php elseif (!$grupos): ?>
@@ -15,15 +18,43 @@
     <?php else: ?>
         <p class="panel-note">Período: <strong><?= e($periodo['nombre']) ?></strong></p>
         <?php foreach ($grupos as $grupo): ?>
-            <section class="card" style="margin-bottom:1rem;">
+            <section class="card" style="margin-bottom:1rem;" id="grupo-<?= (int) $grupo['id_grupo'] ?>">
                 <div class="section-heading">
                     <div>
                         <span class="eyebrow"><?= e($grupo['dias'] ?: $grupo['dia_semana']) ?> · <?= e(substr((string) $grupo['hora_inicio'], 0, 5)) ?>-<?= e(substr((string) $grupo['hora_fin'], 0, 5)) ?> · <?= e(ucfirst((string) $grupo['modalidad'])) ?></span>
                         <h2><?= e($grupo['nombre_materia']) ?></h2>
                     </div>
-                    <span class="badge badge-<?= e($grupo['estado']) ?>"><?= e(ucfirst((string) $grupo['estado'])) ?></span>
+                    <?= estado_grupo_badge($grupo, 'tutor') ?>
                 </div>
-                <p class="panel-note">Aula: <?= e($grupo['aula']) ?> · Cupo: <?= (int) $grupo['cupo_ocupado'] ?>/<?= (int) $grupo['cupo_max'] ?></p>
+                <p class="estado-grupo-texto"><?= e(estado_grupo_visual($grupo, 'tutor')['texto']) ?></p>
+                <?php $vigente = in_array($grupo['estado'], Grupo::ESTADOS_VIGENTES, true); ?>
+                <p class="panel-note">
+                    <?= e($grupo['espacio']) ?> ·
+                    <?php if ($vigente && ubicacion_pendiente($grupo)): ?>
+                        <span class="badge badge-warning">Ubicación pendiente de confirmación</span>
+                    <?php elseif ($grupo['modalidad'] === 'virtual' && $grupo['enlace']): ?>
+                        <a href="<?= e($grupo['enlace']) ?>" target="_blank" rel="noopener noreferrer">Enlace de la reunión</a>
+                    <?php else: ?>
+                        <?= e($grupo['ubicacion'] ?? '—') ?>
+                    <?php endif; ?>
+                    · Cupo: <?= (int) $grupo['cupo_ocupado'] ?>/<?= (int) $grupo['cupo_max'] ?>
+                </p>
+                <?php if ($vigente && $grupo['modalidad'] === 'virtual'): ?>
+                    <?php if ($grupo['enlace_propuesto'] !== null): ?>
+                        <p class="form-hint">Propusiste: <?= e($grupo['espacio_propuesto'] ?? '') ?> · <?= e($grupo['enlace_propuesto']) ?> — pendiente de revisión de la coordinación.</p>
+                    <?php endif; ?>
+                    <details>
+                        <summary><?= $grupo['enlace_propuesto'] !== null ? 'Cambiar mi propuesta' : ($grupo['enlace'] ? 'Proponer otro enlace' : 'Proponer enlace de la reunión') ?></summary>
+                        <form method="post" action="<?= e(app_url('tutor/proponer_enlace.php')) ?>" class="config-form">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <input type="hidden" name="id_grupo" value="<?= (int) $grupo['id_grupo'] ?>">
+                            <label for="enlace_<?= (int) $grupo['id_grupo'] ?>">Enlace de la reunión</label>
+                            <input id="enlace_<?= (int) $grupo['id_grupo'] ?>" name="enlace" type="url" required maxlength="300" placeholder="https://meet.google.com/…">
+                            <p class="form-hint">La plataforma (Meet, Zoom o Teams) se reconoce por el enlace. La coordinación lo aprueba, corrige o reemplaza antes de que lo vean los estudiantes.</p>
+                            <button type="submit">Enviar propuesta</button>
+                        </form>
+                    </details>
+                <?php endif; ?>
                 <div class="table-wrapper">
                     <table>
                         <thead><tr><th>#</th><th>Estudiante</th><th>Correo</th><th>Estado</th></tr></thead>
@@ -55,7 +86,7 @@
                                 </tr>
                             <?php endforeach; ?>
                             <?php if (empty($sesionesPorGrupo[$grupo['id_grupo']])): ?>
-                                <tr><td colspan="3" class="empty-state">Sin sesiones generadas.</td></tr>
+                                <tr><td colspan="3" class="empty-state"><?= $grupo['estado'] === 'por_aprobar' ? 'El grupo espera el visto bueno de la coordinación. Las sesiones se generan al aprobarlo.' : 'Sin sesiones generadas.' ?></td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>

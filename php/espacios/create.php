@@ -2,10 +2,10 @@
 
 require dirname(__DIR__, 2) . '/includes/bootstrap.php';
 Auth::requireRole('administrador');
-$activePage = 'aulas';
+$activePage = 'espacios';
 
-$controller = new AulasController();
-$data = ['nombre' => '', 'tipo' => 'fisica', 'capacidad' => 20, 'ubicacion' => '', 'enlace' => '', 'plataforma' => '', 'estado' => 'activa'];
+$controller = new EspaciosController();
+$data = ['nombre' => '', 'modalidad' => 'presencial', 'descripcion' => ''];
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -14,11 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         [$data, $errors] = $controller->store($_POST);
         if (!$errors) {
-            header('Location: ' . app_url('aulas/?message=created'));
+            header('Location: ' . app_url('espacios/?message=created'));
             exit;
         }
     }
 }
 
 $mode = 'create';
-require dirname(__DIR__, 2) . '/views/aulas/form.php';
+require dirname(__DIR__, 2) . '/views/espacios/form.php';

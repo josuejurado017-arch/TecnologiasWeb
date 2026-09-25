@@ -39,9 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $results = [$controller->quitarEspera($studentId, $materiaId, $periodo)];
         } else {
             $selected = isset($_POST['materias']) && is_array($_POST['materias']) ? $_POST['materias'] : [];
-            $selected = array_slice(array_unique(array_map('intval', $selected)), 0, 20);
+            $selected = array_values(array_unique(array_filter(array_map('intval', $selected))));
             if (!$selected) {
-                $errors[] = 'Selecciona al menos una materia.';
+                $errors[] = 'Elige la materia en la que necesitas apoyo.';
+            } elseif (count($selected) > 1) {
+                $errors[] = 'Solo puedes llevar una tutoría por período: elige una sola materia.';
             } else {
                 $results = $controller->solicitarApoyo($studentId, $selected, $periodo);
             }
@@ -52,5 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // El catalogo se calcula despues del POST para reflejar el estado actualizado.
 $subjects = ($periodo && $studentId) ? $controller->catalog($studentId, $periodo, $careerFilter) : [];
 $summary = $oferta->summary($subjects);
+// Perfil publico de los tutores que dictan u ofrecen las materias listadas.
+$perfiles = $oferta->perfilesTutores(array_merge([], ...array_column($subjects, 'tutor_ids')));
+// Regla institucional: una sola tutoria por periodo (grupo o espera).
+$tutoriaActual = ($periodo && $studentId) ? $controller->tutoriaDelPeriodo($studentId, (int) $periodo['id_periodo']) : null;
 
 require dirname(__DIR__, 2) . '/views/tutorias/form.php';

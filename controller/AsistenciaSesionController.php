@@ -40,6 +40,10 @@ final class AsistenciaSesionController
         if ($sesion === null || (int) $sesion['tutor_usuario'] !== $tutorUserId) {
             return 'No tienes permiso para registrar esta sesion.';
         }
+        // Un periodo cerrado es historial: su asistencia ya no se modifica.
+        if ($sesion['estado_periodo'] !== 'activa') {
+            return 'El período de esta sesión está cerrado: la asistencia ya no se puede modificar.';
+        }
 
         $estados = isset($input['estado']) && is_array($input['estado']) ? $input['estado'] : [];
         $minutos = isset($input['minutos']) && is_array($input['minutos']) ? $input['minutos'] : [];

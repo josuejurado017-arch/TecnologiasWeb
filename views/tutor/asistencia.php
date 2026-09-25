@@ -22,6 +22,11 @@ $estados = ['asistio' => 'Asistio', 'parcial' => 'Parcial', 'retraso' => 'Retras
             <div class="alert" role="alert"><ul><?php foreach ($errors as $formError): ?><li><?= e($formError) ?></li><?php endforeach; ?></ul></div>
         <?php endif; ?>
 
+        <?php $soloLectura = $sesion['estado_periodo'] !== 'activa'; ?>
+        <?php if ($soloLectura): ?>
+            <p class="banner-warning" role="status">El período de esta sesión está cerrado: la asistencia se muestra solo para consulta.</p>
+        <?php endif; ?>
+
         <?php if (!$inscritos): ?>
             <p class="empty-state">Este grupo aun no tiene inscritos.</p>
         <?php else: ?>
@@ -49,7 +54,7 @@ $estados = ['asistio' => 'Asistio', 'parcial' => 'Parcial', 'retraso' => 'Retras
                         </tbody>
                     </table>
                 </div>
-                <button type="submit">Guardar asistencia</button>
+                <?php if (!$soloLectura): ?><button type="submit">Guardar asistencia</button><?php endif; ?>
                 <a class="button secondary" href="<?= e(app_url('mis-grupos/')) ?>">Volver a mis grupos</a>
             </form>
         <?php endif; ?>

@@ -7,12 +7,23 @@ $title = 'Evaluaciones';
 $activePage = 'mis-evaluaciones';
 $user = Auth::user();
 
-$periodo = (new Periodo())->activa();
 $studentId = (new Tutoria())->studentIdByUserId((int) $user['id_usuario']);
 $controller = new EvaluacionGrupoController();
 
-$pendientes = ($periodo && $studentId) ? $controller->pending($studentId, (int) $periodo['id_periodo']) : [];
-$realizadas = ($periodo && $studentId) ? $controller->done($studentId, (int) $periodo['id_periodo']) : [];
+// Periodo activo y periodos cerrados cuyo plazo de gracia para evaluar sigue abierto.
+$periodosEvaluables = (new Periodo())->evaluables();
+$periodo = $periodosEvaluables[0] ?? null;
+$pendientes = [];
+$realizadas = [];
+$plazos = [];
+foreach ($studentId ? $periodosEvaluables : [] as $p) {
+    $pend = $controller->pending($studentId, (int) $p['id_periodo']);
+    $pendientes = array_merge($pendientes, $pend);
+    $realizadas = array_merge($realizadas, $controller->done($studentId, (int) $p['id_periodo']));
+    if ($pend && $p['estado'] === 'cerrada') {
+        $plazos[] = ['nombre' => $p['nombre'], 'hasta' => $p['evaluaciones_hasta']];
+    }
+}
 $message = ($_GET['message'] ?? '') === 'saved' ? 'Evaluacion registrada. Gracias por tu opinion.' : null;
 
 require dirname(__DIR__, 2) . '/views/evaluaciones/mis.php';

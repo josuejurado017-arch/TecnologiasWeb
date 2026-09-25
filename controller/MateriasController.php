@@ -36,7 +36,7 @@ final class MateriasController
         }
 
         try {
-            $this->model->create($data['nombre_materia'], $data['id_carrera']);
+            $this->model->create($data['nombre_materia'], $data['id_carrera'], $data['modalidad_requerida']);
             return [$data, []];
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
@@ -44,22 +44,43 @@ final class MateriasController
         }
     }
 
+    /**
+     * Actualiza la materia. Si cambia su modalidad requerida, avisa a los tutores cuya
+     * configuracion queda incompatible y reprocesa la demanda (la oferta puede cambiar).
+     * Devuelve [$data, $errors, $tutoresIncompatibles].
+     */
     public function update(int $id, array $input): array
     {
         $data = $this->normalize($input);
         $errors = $this->validate($data, $id);
 
         if ($errors) {
-            return [$data, $errors];
+            return [$data, $errors, 0];
         }
 
+        $anterior = $this->model->findById($id);
         try {
-            $this->model->update($id, $data['nombre_materia'], $data['id_carrera']);
-            return [$data, []];
+            $this->model->update($id, $data['nombre_materia'], $data['id_carrera'], $data['modalidad_requerida']);
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
-            return [$data, ['No se pudo actualizar la materia.']];
+            return [$data, ['No se pudo actualizar la materia.'], 0];
         }
+
+        $incompatibles = [];
+        if ($anterior !== null && $anterior['modalidad_requerida'] !== $data['modalidad_requerida']) {
+            $incompatibles = $this->model->tutoresIncompatibles($id);
+            try {
+                $notif = new Notificacion();
+                foreach ($incompatibles as $tutor) {
+                    $notif->notifyTutorModalidadMateria(Database::connection(), (int) $tutor['id_usuario'], $id, $data['nombre_materia'], $data['modalidad_requerida']);
+                }
+            } catch (Throwable $exception) {
+                error_log('Notificacion modalidad materia: ' . $exception->getMessage());
+            }
+            (new AsignacionController())->reprocesarMateria($id);
+        }
+
+        return [$data, [], count($incompatibles)];
     }
 
     public function delete(int $id): ?string
@@ -77,9 +98,12 @@ final class MateriasController
     {
         $careerId = filter_var($input['id_carrera'] ?? null, FILTER_VALIDATE_INT);
 
+        $modalidad = (string) ($input['modalidad_requerida'] ?? 'libre');
+
         return [
             'nombre_materia' => normalize_name((string) ($input['nombre_materia'] ?? '')),
             'id_carrera' => $careerId !== false ? $careerId : null,
+            'modalidad_requerida' => isset(Materia::MODALIDADES_REQUERIDAS[$modalidad]) ? $modalidad : 'libre',
         ];
     }
 

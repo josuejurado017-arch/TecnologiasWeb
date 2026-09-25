@@ -21,7 +21,7 @@ require __DIR__ . '/../layouts/header.php';
         <div class="card">
             <span class="eyebrow">Cuenta de tutor</span>
             <h2>Crear cuenta</h2>
-            <p>Tu especialidad y biografía se guardan en tu perfil.</p>
+            <p>Tu especialidad y biografía se guardan en tu perfil. La coordinación académica revisará tu habilitación antes de asignarte grupos.</p>
             <?php if (!empty($errors)): ?><div class="alert" role="alert"><ul><?php foreach ($errors as $formError): ?><li><?= e($formError) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
             <form method="post" action="<?= e(app_url('postular-tutor.php')) ?>">
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">

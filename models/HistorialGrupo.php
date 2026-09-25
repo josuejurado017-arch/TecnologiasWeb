@@ -5,7 +5,8 @@ declare(strict_types=1);
 final class HistorialGrupo
 {
     /** Registra un evento del grupo (creado, confirmado, cancelado, reprogramado, cambio_*). */
-    public function log(PDO $pdo, int $grupoId, string $tipo, ?string $estadoAnterior, ?string $estadoNuevo, ?int $userId, ?string $motivo): void
+    /** Registra un evento del grupo y devuelve su id (sirve de clave unica para los avisos del evento). */
+    public function log(PDO $pdo, int $grupoId, string $tipo, ?string $estadoAnterior, ?string $estadoNuevo, ?int $userId, ?string $motivo): int
     {
         $statement = $pdo->prepare(
             'INSERT INTO historial_grupo (id_grupo, tipo_evento, estado_anterior, estado_nuevo, id_usuario, motivo)
@@ -19,6 +20,8 @@ final class HistorialGrupo
             'id_usuario' => $userId,
             'motivo' => $motivo,
         ]);
+
+        return (int) $pdo->lastInsertId();
     }
 
     /** Historial de un grupo con el responsable. */

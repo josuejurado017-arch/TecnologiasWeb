@@ -15,5 +15,5 @@ $materiaId = (int) ($_POST['id_materia'] ?? 0);
 $query = $error
     ? '?error=' . rawurlencode($error) . '&materia=' . $materiaId
     : '?message=subject-configured';
-header('Location: ' . app_url('mis-materias/' . $query));
+header('Location: ' . app_url('mis-materias/' . $query . '#materia-' . $materiaId));
 exit;

@@ -13,6 +13,9 @@
     <?php if (!$periodo): ?>
         <p class="alert" role="alert">No hay un periodo de tutoría activo.</p>
     <?php else: ?>
+        <?php foreach ($plazos ?? [] as $plazo): ?>
+            <p class="banner-warning" role="status">El período <?= e($plazo['nombre']) ?> ya cerró: puedes evaluar sus tutorías hasta el <?= e(date('d/m/Y', strtotime((string) $plazo['hasta']))) ?>.</p>
+        <?php endforeach; ?>
         <section class="card">
             <h2>Pendientes de evaluar</h2>
             <div class="table-wrapper">

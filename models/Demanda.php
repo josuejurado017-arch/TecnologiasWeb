@@ -13,11 +13,14 @@ final class Demanda
     public const MOTIVO_SIN_TUTOR = 'sin_tutor';
     public const MOTIVO_SIN_HORARIO = 'sin_horario';
     public const MOTIVO_GRUPO_CANCELADO = 'grupo_cancelado';
+    /** Hay tutor y turno compatibles, pero aun no se reune el minimo para formar grupo (db/035). */
+    public const MOTIVO_ESPERANDO = 'esperando_companeros';
 
     public const MOTIVOS = [
         self::MOTIVO_SIN_TUTOR => 'Sin tutor habilitado',
         self::MOTIVO_SIN_HORARIO => 'Sin horario compatible',
         self::MOTIVO_GRUPO_CANCELADO => 'Grupo cancelado',
+        self::MOTIVO_ESPERANDO => 'Esperando compañeros',
     ];
 
     /**
@@ -167,6 +170,7 @@ final class Demanda
                     SUM(d.motivo = 'sin_tutor') AS sin_tutor,
                     SUM(d.motivo = 'sin_horario') AS sin_horario,
                     SUM(d.motivo = 'grupo_cancelado') AS grupo_cancelado,
+                    SUM(d.motivo = 'esperando_companeros') AS esperando,
                     MIN(d.fecha_solicitud) AS espera_desde
              FROM demanda_tutoria d
              INNER JOIN materias m ON m.id_materia = d.id_materia
@@ -180,21 +184,23 @@ final class Demanda
         return $statement->fetchAll();
     }
 
-    /** Totales del periodo: registradas, pendientes (por motivo), atendidas, canceladas y horas medias de espera. */
+    /** Totales del periodo: registradas, sin atender (pendientes + vencidas al cierre, por motivo), atendidas, canceladas y horas medias de espera. */
     public function conversion(int $periodoId): array
     {
         $statement = Database::connection()->prepare(
             "SELECT COUNT(*) AS registradas,
-                    SUM(estado = 'pendiente') AS pendientes,
-                    SUM(estado = 'pendiente' AND motivo = 'sin_tutor') AS pend_sin_tutor,
-                    SUM(estado = 'pendiente' AND motivo = 'sin_horario') AS pend_sin_horario,
-                    SUM(estado = 'pendiente' AND motivo = 'grupo_cancelado') AS pend_grupo_cancelado,
+                    SUM(estado IN ('pendiente','vencida')) AS pendientes,
+                    SUM(estado = 'vencida') AS vencidas,
+                    SUM(estado IN ('pendiente','vencida') AND motivo = 'sin_tutor') AS pend_sin_tutor,
+                    SUM(estado IN ('pendiente','vencida') AND motivo = 'sin_horario') AS pend_sin_horario,
+                    SUM(estado IN ('pendiente','vencida') AND motivo = 'grupo_cancelado') AS pend_grupo_cancelado,
+                    SUM(estado IN ('pendiente','vencida') AND motivo = 'esperando_companeros') AS pend_esperando,
                     SUM(estado = 'atendida') AS atendidas,
                     SUM(estado = 'cancelada') AS canceladas,
                     ROUND(AVG(CASE WHEN estado = 'atendida' AND fecha_atencion IS NOT NULL
                                    THEN TIMESTAMPDIFF(HOUR, fecha_solicitud, fecha_atencion) END), 1) AS horas_espera_promedio,
-                    COUNT(DISTINCT CASE WHEN estado = 'pendiente' THEN id_materia END) AS materias_pendientes,
-                    COUNT(DISTINCT CASE WHEN estado = 'pendiente' AND motivo = 'sin_tutor' THEN id_materia END) AS materias_sin_tutor
+                    COUNT(DISTINCT CASE WHEN estado IN ('pendiente','vencida') THEN id_materia END) AS materias_pendientes,
+                    COUNT(DISTINCT CASE WHEN estado IN ('pendiente','vencida') AND motivo = 'sin_tutor' THEN id_materia END) AS materias_sin_tutor
              FROM demanda_tutoria
              WHERE id_periodo = :id_periodo"
         );
