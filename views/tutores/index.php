@@ -45,11 +45,6 @@
                                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                 <button class="link-button" type="submit"><?= $activo ? 'Desactivar' : 'Activar' ?></button>
                             </form>
-                            <form method="post" action="<?= e(app_url('tutores/delete.php')) ?>" onsubmit="return confirm('Eliminar este perfil?');">
-                                <input type="hidden" name="id" value="<?= (int) $tutor['id_tutor'] ?>">
-                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                <button class="link-button" type="submit">Eliminar</button>
-                            </form>
                         </td>
                     </tr>
                 <?php endforeach; ?>

@@ -101,12 +101,20 @@ final class EstudiantesController
             return [$data, $errors];
         }
 
+        [$bloqueo, $efecto] = EstadoCuenta::prepararCambio($userId, (string) $current['estado'], $data['estado']);
+        if ($bloqueo !== null) {
+            return [$data, [$bloqueo]];
+        }
+
         $connection = Database::connection();
         $connection->beginTransaction();
         try {
             $this->usuarios->updateIdentity($userId, $data);
             $this->model->updateAcademic($id, $data);
             $connection->commit();
+            if ($efecto !== null) {
+                $efecto();
+            }
 
             return [$data, []];
         } catch (PDOException $exception) {
@@ -143,29 +151,34 @@ final class EstudiantesController
         if ((int) (Auth::user()['id_usuario'] ?? 0) === $userId) {
             return 'No puede cambiar el estado de su propia cuenta.';
         }
+        if ($estado === 'inactivo' && ($bloqueo = EstadoCuenta::bloqueoDesactivar($userId)) !== null) {
+            return $bloqueo;
+        }
 
         try {
             $cambio = $estado === 'activo'
                 ? $this->usuarios->activate($userId)
                 : $this->usuarios->deactivate($userId);
-
-            return $cambio ? null : 'La cuenta ya estaba ' . ($estado === 'activo' ? 'activa' : 'inactiva') . '.';
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
 
             return 'No fue posible cambiar el estado de la cuenta.';
         }
+        if (!$cambio) {
+            return 'La cuenta ya estaba ' . ($estado === 'activo' ? 'activa' : 'inactiva') . '.';
+        }
+        $estado === 'activo' ? EstadoCuenta::despuesDeActivar($userId) : EstadoCuenta::despuesDeDesactivar($userId);
+
+        return null;
     }
 
+    /**
+     * Los perfiles no se eliminan: borrarlos arrastraba inscripciones, asistencias,
+     * evaluaciones y demanda (db/041). La baja es Desactivar, que conserva el historial.
+     */
     public function delete(int $id): ?string
     {
-        try {
-            $this->model->delete($id);
-            return null;
-        } catch (PDOException $exception) {
-            error_log($exception->getMessage());
-            return 'No se puede eliminar el perfil porque tiene tutorias asociadas.';
-        }
+        return 'Los perfiles de estudiante no se eliminan para conservar su historial académico. Usa Desactivar.';
     }
 
     private function normalize(array $input): array

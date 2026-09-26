@@ -11,6 +11,40 @@
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>
     <?php if (!empty($error)): ?><p class="alert" role="alert"><?= e($error) ?></p><?php endif; ?>
 
+    <?php if (!empty($divisiones)): ?>
+        <section class="card" id="divisiones" style="margin-bottom:1rem;">
+            <h2>Propuestas de la coordinación</h2>
+            <?php foreach ($divisiones as $d): ?>
+                <?php $g = $d['grupo']; $plan = $d['plan']; $nuevos = count($plan['pasan']) + count($plan['desde_espera']); ?>
+                <article class="tarjeta-sin-tutor" style="margin-bottom:.75rem;">
+                    <strong>Tomar la mitad del grupo de <?= e($g['nombre_materia']) ?></strong>
+                    <small><?= e(implode('/', $d['dias'])) ?> · <?= e(substr((string) $g['hora_inicio'], 0, 5)) ?>-<?= e(substr((string) $g['hora_fin'], 0, 5)) ?> · <?= e(ucfirst((string) $g['modalidad'])) ?> · hoy lo dicta <?= e($g['tutor']) ?></small>
+                    <?php if ($plan['error'] !== null): ?>
+                        <small class="materia-aviso"><?= e($plan['error']) ?></small>
+                    <?php else: ?>
+                        <small>Tendrías <strong><?= $nuevos ?></strong> estudiante(s): <?= count($plan['pasan']) ?> que pasan del grupo actual y <?= count($plan['desde_espera']) ?> que estaban en espera. Se confirma al aceptar.</small>
+                    <?php endif; ?>
+                    <form method="post" action="<?= e(app_url('tutor/division.php')) ?>" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="id_division" value="<?= (int) $d['id_division'] ?>">
+                        <input type="hidden" name="respuesta" value="aceptar">
+                        <button type="submit" onclick="return confirm('¿Aceptar? Se creará tu grupo y se trasladarán los estudiantes.');">Aceptar</button>
+                    </form>
+                    <details>
+                        <summary>Rechazar</summary>
+                        <form method="post" action="<?= e(app_url('tutor/division.php')) ?>" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <input type="hidden" name="id_division" value="<?= (int) $d['id_division'] ?>">
+                            <input type="hidden" name="respuesta" value="rechazar">
+                            <input name="motivo" required minlength="10" maxlength="300" placeholder="Motivo (ej. no tengo disponibilidad ese turno)" aria-label="Motivo del rechazo">
+                            <button type="submit" class="secondary">Rechazar</button>
+                        </form>
+                    </details>
+                </article>
+            <?php endforeach; ?>
+        </section>
+    <?php endif; ?>
+
     <?php if (!$periodo): ?>
         <p class="alert" role="alert">No hay un período de tutoría activo.</p>
     <?php elseif (!$grupos): ?>

@@ -30,12 +30,43 @@ final class TutorMateriaConfig
 
     public const ESTADOS = ['pendiente', 'aprobado', 'rechazado', 'propuesta'];
 
+    /** Tope por defecto si el periodo no lo define; el vigente es periodos.max_grupos_tutor. */
     public const MAX_MATERIAS = 2;
 
     private function periodoActivo(): ?int
     {
         $periodo = (new Periodo())->activa();
         return $periodo ? (int) $periodo['id_periodo'] : null;
+    }
+
+    /**
+     * Carga maxima de un tutor en el periodo (activo si no se indica): la misma cifra
+     * limita materias ofertadas y grupos dictados (periodos.max_grupos_tutor, db/037).
+     */
+    public function limiteCarga(?int $periodoId = null): int
+    {
+        $periodoId ??= $this->periodoActivo();
+        if ($periodoId === null) {
+            return self::MAX_MATERIAS;
+        }
+        $statement = Database::connection()->prepare('SELECT max_grupos_tutor FROM periodos WHERE id_periodo = :p');
+        $statement->execute(['p' => $periodoId]);
+        $limite = (int) $statement->fetchColumn();
+
+        // El formulario del periodo admite 1 o 2 (PeriodosController); se acota por datos antiguos.
+        return $limite > 0 ? min($limite, self::MAX_MATERIAS) : self::MAX_MATERIAS;
+    }
+
+    /** "dos materias", "tres grupos"... para los mensajes de tope. */
+    public static function cantidadEnLetras(int $n, string $singular, string $plural): string
+    {
+        $palabras = [1 => 'una', 2 => 'dos', 3 => 'tres', 4 => 'cuatro'];
+        $numero = $palabras[$n] ?? (string) $n;
+        if ($n === 1 && $singular === 'grupo') {
+            $numero = 'un';
+        }
+
+        return $numero . ' ' . ($n === 1 ? $singular : $plural);
     }
 
     /** Serializa decisiones de oferta del mismo tutor durante una campaña. */
@@ -53,25 +84,26 @@ final class TutorMateriaConfig
         }
     }
 
-    private function validarCarga(PDO $pdo, int $tutorId, int $materiaId, int $periodoId, array $turnos, bool $ampliacion = false): ?string
+    private function validarCarga(PDO $pdo, int $tutorId, int $materiaId, int $periodoId, array $turnos, bool $ampliacion = false, bool $turnoCompartido = false): ?string
     {
         if ($turnos === []) { return 'La oferta necesita al menos un turno.'; }
+        $limite = $this->limiteCarga($periodoId);
         $count = $pdo->prepare("SELECT COUNT(*) FROM tutor_materia_config WHERE id_periodo = :p AND id_tutor = :t AND id_materia <> :m AND estado IN ('pendiente','aprobado','propuesta')");
         $count->execute(['p' => $periodoId, 't' => $tutorId, 'm' => $materiaId]);
-        if ((int) $count->fetchColumn() >= self::MAX_MATERIAS) {
-            return 'El tutor ya tiene dos materias asignadas en este período.';
+        if ((int) $count->fetchColumn() >= $limite) {
+            return 'El tutor ya tiene ' . self::cantidadEnLetras($limite, 'materia asignada', 'materias asignadas') . ' en este período.';
         }
         $grupos = $pdo->prepare("SELECT COUNT(DISTINCT id_materia) FROM grupos_tutoria WHERE id_periodo = :p AND id_tutor = :t AND estado <> 'cancelado' AND id_materia <> :m");
         $grupos->execute(['p' => $periodoId, 't' => $tutorId, 'm' => $materiaId]);
-        if ((int) $grupos->fetchColumn() >= self::MAX_MATERIAS) {
-            return 'El tutor ya dicta dos materias en este período.';
+        if ((int) $grupos->fetchColumn() >= $limite) {
+            return 'El tutor ya dicta ' . self::cantidadEnLetras($limite, 'materia', 'materias') . ' en este período.';
         }
         $cupo = $pdo->prepare("SELECT COUNT(*) AS total, SUM(id_materia = :m) AS misma FROM grupos_tutoria
             WHERE id_periodo = :p AND id_tutor = :t AND estado <> 'cancelado'");
         $cupo->execute(['m' => $materiaId, 'p' => $periodoId, 't' => $tutorId]);
         $ocupacion = $cupo->fetch();
-        if ((int) $ocupacion['total'] >= 2 && (int) $ocupacion['misma'] === 0) {
-            return 'El tutor ya tiene dos grupos en este período.';
+        if ((int) $ocupacion['total'] >= $limite && (int) $ocupacion['misma'] === 0) {
+            return 'El tutor ya tiene ' . self::cantidadEnLetras($limite, 'grupo', 'grupos') . ' en este período.';
         }
         foreach ($turnos as $turno) {
             $ocupado = $pdo->prepare("SELECT 1 FROM tutor_materia_turno tt INNER JOIN tutor_materia_config c
@@ -88,7 +120,8 @@ final class TutorMateriaConfig
                   AND c.estado IN ('aprobado','propuesta') LIMIT 1");
             $otro->execute(['p' => $periodoId, 'm' => $materiaId, 't' => $tutorId, 'turno' => $turno]);
             $estadoOtro = $otro->fetchColumn();
-            if ($estadoOtro && (!$ampliacion || $estadoOtro === 'propuesta' || !$this->necesitaAmpliacion($pdo, $periodoId, $materiaId, $turno))) {
+            // En una division (db/042) el turno se comparte a proposito con el tutor del grupo lleno.
+            if ($estadoOtro && !$turnoCompartido && (!$ampliacion || $estadoOtro === 'propuesta' || !$this->necesitaAmpliacion($pdo, $periodoId, $materiaId, $turno))) {
                 return 'El turno ' . self::TURNOS[$turno]['label'] . ' ya está cubierto para esta materia. Solo la coordinación puede ampliar su capacidad cuando exista demanda.';
             }
         }
@@ -103,6 +136,47 @@ final class TutorMateriaConfig
               (SELECT 1 FROM demanda_tutoria d WHERE d.id_periodo = g.id_periodo AND d.id_materia = g.id_materia AND d.estado = 'pendiente') LIMIT 1");
         $query->execute(['p' => $periodoId, 'm' => $materiaId, 'hora' => self::TURNOS[$turno]['inicio']]);
         return (bool) $query->fetchColumn();
+    }
+
+    /**
+     * Division de grupo (db/042): el tutor que toma la mitad comparte el turno con el
+     * del grupo lleno, pero respeta su tope de materias y grupos y no puede tener otra
+     * materia en ese turno. null si puede.
+     */
+    public function validarDivision(PDO $pdo, int $tutorId, int $materiaId, int $periodoId, string $turno): ?string
+    {
+        return $this->validarCarga($pdo, $tutorId, $materiaId, $periodoId, [$turno], false, true);
+    }
+
+    /**
+     * Al aceptar una division, la materia queda aprobada para el tutor en ese turno del
+     * periodo (la propuso la coordinacion): el grupo nuevo se apoya en una oferta real.
+     */
+    public function aprobarPorDivision(PDO $pdo, int $tutorId, int $materiaId, int $periodoId, string $turno, string $modalidad, ?int $adminId, int $grupoOrigenId): void
+    {
+        $previo = $pdo->prepare('SELECT estado FROM tutor_materia_config WHERE id_tutor = :t AND id_materia = :m AND id_periodo = :p');
+        $previo->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId]);
+        $estadoAnterior = $previo->fetchColumn();
+
+        $pdo->prepare('INSERT IGNORE INTO tutor_materia (id_tutor, id_materia) VALUES (:t, :m)')->execute(['t' => $tutorId, 'm' => $materiaId]);
+        $pdo->prepare(
+            "INSERT INTO tutor_materia_config (id_tutor, id_materia, id_periodo, modalidad, cupo_recomendado, estado, motivo_rechazo, id_usuario_revision, fecha_revision)
+             VALUES (:t, :m, :p, :modalidad, NULL, 'aprobado', NULL, :admin, NOW())
+             ON DUPLICATE KEY UPDATE estado = 'aprobado', motivo_rechazo = NULL, id_usuario_revision = VALUES(id_usuario_revision), fecha_revision = NOW()"
+        )->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId, 'modalidad' => $modalidad, 'admin' => $adminId]);
+        $pdo->prepare('INSERT IGNORE INTO tutor_materia_turno (id_tutor, id_materia, id_periodo, turno) VALUES (:t, :m, :p, :turno)')
+            ->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId, 'turno' => $turno]);
+        if ($estadoAnterior !== 'aprobado') {
+            $pdo->prepare(
+                "INSERT INTO tutor_materia_historial (id_tutor, id_materia, id_periodo, estado_anterior, estado_nuevo, motivo, id_usuario_accion)
+                 VALUES (:t, :m, :p, :anterior, 'aprobado', :motivo, :admin)"
+            )->execute([
+                't' => $tutorId, 'm' => $materiaId, 'p' => $periodoId,
+                'anterior' => $estadoAnterior === false ? null : $estadoAnterior,
+                'motivo' => 'Aprobada al aceptar la división del grupo #' . $grupoOrigenId . '.',
+                'admin' => $adminId,
+            ]);
+        }
     }
 
     /**
@@ -161,7 +235,7 @@ final class TutorMateriaConfig
             FROM tutor_materia_turno tt INNER JOIN tutor_materia_config c
               ON c.id_tutor = tt.id_tutor AND c.id_materia = tt.id_materia AND c.id_periodo = tt.id_periodo
             INNER JOIN tutores t ON t.id_tutor = tt.id_tutor INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
-            WHERE tt.id_materia = :m AND tt.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)
+            WHERE tt.id_materia = :m AND tt.id_periodo = " . Periodo::sqlIdActivo() . "
               AND c.estado = 'aprobado' ORDER BY tt.turno, u.apellido");
         $stmt->execute(['m' => $materiaId]);
         $result = [];
@@ -185,16 +259,17 @@ final class TutorMateriaConfig
      * Tutores habilitados con oferta APROBADA de la materia en ese turno y en una
      * modalidad que sirve al grupo: los que pueden tomar un grupo ya formado (db/039).
      */
-    public function tutoresConTurno(int $materiaId, string $turno, string $modalidadGrupo): array
+    public function tutoresConTurno(int $materiaId, string $turno, string $modalidadGrupo, ?int $periodoId = null): array
     {
         $habilitado = self::sqlTutorHabilitado();
+        $periodoSql = $periodoId !== null ? (string) $periodoId : Periodo::sqlIdActivo();
         $statement = Database::connection()->prepare(
             "SELECT t.id_tutor, CONCAT(u.nombre, ' ', u.apellido) AS tutor, t.especialidad, c.modalidad
              FROM tutor_materia_config c
              INNER JOIN tutor_materia_turno tt ON tt.id_tutor = c.id_tutor AND tt.id_materia = c.id_materia AND tt.id_periodo = c.id_periodo AND tt.turno = :turno
              INNER JOIN tutores t ON t.id_tutor = c.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND {$habilitado}
-             WHERE c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)
+             WHERE c.id_periodo = {$periodoSql}
                AND c.id_materia = :id_materia AND c.estado = 'aprobado' AND c.modalidad IN ('ambas', :modalidad)
              ORDER BY u.apellido, u.nombre"
         );
@@ -209,7 +284,7 @@ final class TutorMateriaConfig
         $statement = Database::connection()->prepare(
              "SELECT modalidad, cupo_recomendado, estado, motivo_rechazo
               FROM tutor_materia_config WHERE id_tutor = :id_tutor AND id_materia = :id_materia
-                AND id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1) LIMIT 1"
+                AND id_periodo = " . Periodo::sqlIdActivo() . " LIMIT 1"
         );
         $statement->execute(['id_tutor' => $tutorId, 'id_materia' => $materiaId]);
         $config = $statement->fetch();
@@ -367,10 +442,13 @@ final class TutorMateriaConfig
      * decide la demanda (Grupo::diasPorDemanda). Solo cuenta la oferta aprobada por
      * la coordinacion (db/032): es el unico filtro que usa el motor.
      */
-    public function slotsForMatter(int $materiaId): array
+    public function slotsForMatter(int $materiaId, ?int $periodoId = null): array
     {
         $habilitado = self::sqlTutorHabilitado();
         $compatible = self::sqlModalidadCompatible('c', 'm');
+        // El motor pasa el periodo en el que trabaja: con periodos en paralelo (db/043)
+        // no puede depender del tipo elegido en el portal.
+        $periodoSql = $periodoId !== null ? (string) $periodoId : Periodo::sqlIdActivo();
         $statement = Database::connection()->prepare(
             "SELECT c.id_tutor, c.modalidad, c.cupo_recomendado, m.modalidad_requerida, tt.turno
              FROM tutor_materia_config c
@@ -378,7 +456,7 @@ final class TutorMateriaConfig
              INNER JOIN tutores t ON t.id_tutor = c.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario AND {$habilitado}
              INNER JOIN tutor_materia_turno tt ON tt.id_tutor = c.id_tutor AND tt.id_materia = c.id_materia AND tt.id_periodo = c.id_periodo
-              WHERE c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)
+              WHERE c.id_periodo = {$periodoSql}
                 AND c.id_materia = :id_materia AND c.estado = 'aprobado' AND {$compatible}
              ORDER BY c.id_tutor, FIELD(tt.turno, 'Manana', 'Mediodia', 'Tarde', 'Noche')"
         );
@@ -404,9 +482,9 @@ final class TutorMateriaConfig
     }
 
     /** Hay al menos un tutor con oferta aprobada para la materia. */
-    public function hasApprovedOffer(int $materiaId): bool
+    public function hasApprovedOffer(int $materiaId, ?int $periodoId = null): bool
     {
-        return $this->slotsForMatter($materiaId) !== [];
+        return $this->slotsForMatter($materiaId, $periodoId) !== [];
     }
 
     /**
@@ -432,10 +510,10 @@ final class TutorMateriaConfig
         return "(EXISTS (SELECT 1 FROM tutor_materia_config tmcm
                      INNER JOIN materias mm ON mm.id_materia = tmcm.id_materia
                       WHERE tmcm.id_tutor = {$alias}.id_tutor AND tmcm.id_materia = {$alias}.id_materia
-                        AND tmcm.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1) AND {$compatible})
+                        AND tmcm.id_periodo = " . Periodo::sqlIdActivo() . " AND {$compatible})
                   AND EXISTS (SELECT 1 FROM tutor_materia_turno tmt
                       WHERE tmt.id_tutor = {$alias}.id_tutor AND tmt.id_materia = {$alias}.id_materia
-                        AND tmt.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)))";
+                        AND tmt.id_periodo = " . Periodo::sqlIdActivo() . "))";
     }
 
     /**
@@ -450,7 +528,7 @@ final class TutorMateriaConfig
 
         return "({$configurada} AND EXISTS (SELECT 1 FROM tutor_materia_config tmca
                       WHERE tmca.id_tutor = {$alias}.id_tutor AND tmca.id_materia = {$alias}.id_materia
-                        AND tmca.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1) AND tmca.estado = 'aprobado'))";
+                        AND tmca.id_periodo = " . Periodo::sqlIdActivo() . " AND tmca.estado = 'aprobado'))";
     }
 
     /**
@@ -512,7 +590,7 @@ final class TutorMateriaConfig
              INNER JOIN tutores t ON t.id_tutor = c.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
              INNER JOIN materias m ON m.id_materia = c.id_materia
-              WHERE c.estado = 'pendiente' AND c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)
+              WHERE c.estado = 'pendiente' AND c.id_periodo = " . Periodo::sqlIdActivo() . "
              ORDER BY c.fecha_actualizacion ASC"
         );
         $rows = $statement->fetchAll();
@@ -528,7 +606,7 @@ final class TutorMateriaConfig
     public function countPendientes(): int
     {
         return (int) Database::connection()->query(
-            "SELECT COUNT(*) FROM tutor_materia_config WHERE estado = 'pendiente' AND id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)"
+            "SELECT COUNT(*) FROM tutor_materia_config WHERE estado = 'pendiente' AND id_periodo = " . Periodo::sqlIdActivo() . ""
         )->fetchColumn();
     }
 
@@ -785,7 +863,7 @@ final class TutorMateriaConfig
              FROM tutor_materia_config c
              INNER JOIN tutores t ON t.id_tutor = c.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
-              WHERE c.estado = 'propuesta' AND c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)
+              WHERE c.estado = 'propuesta' AND c.id_periodo = " . Periodo::sqlIdActivo() . "
              ORDER BY c.fecha_revision"
         )->fetchAll();
         $result = [];

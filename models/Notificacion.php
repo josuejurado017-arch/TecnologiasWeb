@@ -153,6 +153,14 @@ final class Notificacion
         return array_map('intval', array_column($statement->fetchAll(), 'id_usuario'));
     }
 
+    /** Aviso a la coordinacion sobre una division de grupo (db/042): aceptada o rechazada por el tutor. */
+    public function notifyAdminsDivision(PDO $pdo, int $divisionId, string $tipo, string $titulo, string $mensaje, string $url): void
+    {
+        foreach ($this->adminUserIds($pdo) as $adminId) {
+            $this->create($pdo, $adminId, null, $tipo, $titulo, mb_substr($mensaje, 0, 500), $url, $tipo . ':' . $divisionId . ':' . $adminId);
+        }
+    }
+
     // ------------------------------------------------------------------
     // Gestion manual de la coordinacion (db/039)
     // ------------------------------------------------------------------
@@ -238,7 +246,7 @@ final class Notificacion
         foreach ($this->adminUserIds($pdo) as $adminId) {
             $this->create($pdo, $adminId, null, 'cupo_completo', 'Demanda con grupo lleno',
                 $materia . ' · ' . $turno . ': hay estudiantes en espera y un grupo llegó a su cupo. Revisa la demanda y propón otro tutor si corresponde.',
-                '/grupos/#demanda', 'cupo_completo:' . $grupoId . ':' . $adminId);
+                '/grupos/#cupos-completos', 'cupo_completo:' . $grupoId . ':' . $adminId);
         }
     }
 
@@ -505,6 +513,28 @@ final class Notificacion
                 mb_substr('El período ' . $periodo . ' cerró. Tienes hasta el ' . $hasta . ' para evaluar tus tutorías.', 0, 500),
                 '/mis-evaluaciones/', 'periodo_cerrado_evaluar:' . $periodoId . ':' . $userId);
         }
+    }
+
+    /**
+     * Al activar un periodo las ofertas no se heredan (db/040): cada tutor habilitado
+     * y activo recibe el aviso de renovar sus materias y turnos.
+     */
+    public function notifyTutoresRenovarOferta(PDO $pdo, int $periodoId, string $periodo): int
+    {
+        $tutores = $pdo->query(
+            "SELECT t.id_usuario FROM tutores t INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             WHERE t.estado_docente = 'aprobado' AND u.estado = 'activo'"
+        );
+        $n = 0;
+        foreach ($tutores->fetchAll() as $row) {
+            $userId = (int) $row['id_usuario'];
+            $this->create($pdo, $userId, null, 'renovar_oferta', 'Renueva tu oferta',
+                mb_substr('Se abrió el período ' . $periodo . '. Tus materias del período anterior no se renuevan solas: elige tus materias y turnos en Mis materias.', 0, 500),
+                '/mis-materias/', 'renovar_oferta:' . $periodoId . ':' . $userId);
+            $n++;
+        }
+
+        return $n;
     }
 
     public function markRead(int $id, int $userId): bool

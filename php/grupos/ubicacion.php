@@ -57,6 +57,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = $controller->inscribirManual($id, (int) ($_POST['id_estudiante'] ?? 0), $adminId);
                 $mensaje = 'inscrito';
                 break;
+            // Division de un grupo lleno (db/042).
+            case 'dividir':
+                $error = (new DivisionGrupoController())->proponer($id, (int) ($_POST['id_tutor_division'] ?? 0), $adminId);
+                $mensaje = 'division_enviada';
+                break;
+            case 'cancelar_division':
+                $error = (new DivisionGrupoController())->cancelar((int) ($_POST['id_division'] ?? 0), $adminId);
+                $mensaje = 'division_cancelada';
+                break;
             case 'retirar':
                 [$error, $aviso] = $controller->retirarEstudiante($id, (int) ($_POST['id_estudiante'] ?? 0), (string) ($_POST['motivo_retiro'] ?? ''), $adminId);
                 $mensaje = 'retirado';
@@ -81,6 +90,8 @@ $messages = [
     'tutor_cambiado' => 'Tutor cambiado. Se avisó a los dos tutores y a los inscritos.',
     'inscrito' => 'Estudiante inscrito. Se le avisó.',
     'retirado' => 'Estudiante retirado. Se le avisó.',
+    'division_enviada' => 'Propuesta de división enviada. El grupo se divide cuando el tutor la acepte.',
+    'division_cancelada' => 'Propuesta de división retirada.',
 ];
 $message = $messages[$_GET['message'] ?? ''] ?? null;
 $avisoAccion = isset($_GET['aviso']) && is_string($_GET['aviso']) ? $_GET['aviso'] : null;
@@ -97,5 +108,21 @@ $inscritos = $controller->enrolled($id);
 $demandaPendiente = $controller->demandaPendiente((int) $grupo['id_periodo'], (int) $grupo['id_materia']);
 $tutoresDisponibles = $vigente ? $controller->tutoresDisponibles($grupo) : [];
 $candidatos = $vigente && (int) $grupo['cupo_ocupado'] < (int) $grupo['cupo_max'] ? $controller->candidatosInscripcion($grupo, $busqueda) : [];
+$cierreInscripcion = (new Grupo())->cierreInscripcion($id);
+
+// Division (db/042): vista previa con el tutor elegido; se ejecuta cuando el tutor acepta.
+$divisiones = new DivisionGrupoController();
+$divisionPendiente = $vigente ? $divisiones->pendiente($id) : null;
+$bloqueoDivision = $vigente ? $divisiones->bloqueoGrupo($grupo) : null;
+$mostrarDivision = $vigente && ($divisionPendiente !== null || (int) $grupo['cupo_ocupado'] >= (int) $grupo['cupo_max']);
+$tutoresDivision = $mostrarDivision && $bloqueoDivision === null ? $divisiones->tutoresElegibles($grupo) : [];
+$tutorPrevia = filter_input(INPUT_GET, 'dividir_tutor', FILTER_VALIDATE_INT) ?: null;
+$tutorPreviaNombre = null;
+foreach ($tutoresDivision as $t) {
+    if ((int) $t['id_tutor'] === $tutorPrevia) {
+        $tutorPreviaNombre = $t['tutor'];
+    }
+}
+$planDivision = $tutorPreviaNombre !== null ? $divisiones->plan($grupo) : null;
 
 require dirname(__DIR__, 2) . '/views/grupos/ubicacion.php';

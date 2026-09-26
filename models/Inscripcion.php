@@ -30,7 +30,7 @@ final class Inscripcion
             "SELECT DISTINCT g.id_materia
              FROM inscripciones i
              INNER JOIN grupos_tutoria g ON g.id_grupo = i.id_grupo
-             WHERE i.id_estudiante = :id_estudiante AND g.id_periodo = :id_periodo AND i.estado <> 'cancelada'"
+             WHERE i.id_estudiante = :id_estudiante AND g.id_periodo = :id_periodo AND i.estado NOT IN ('cancelada', 'trasladada')"
         );
         $statement->execute(['id_estudiante' => $studentId, 'id_periodo' => $periodoId]);
 
@@ -71,7 +71,7 @@ final class Inscripcion
              FROM inscripciones i
              INNER JOIN estudiantes e ON e.id_estudiante = i.id_estudiante
              INNER JOIN usuarios u ON u.id_usuario = e.id_usuario
-             WHERE i.id_grupo = :id_grupo AND i.estado <> 'cancelada'
+             WHERE i.id_grupo = :id_grupo AND i.estado NOT IN ('cancelada', 'trasladada')
              ORDER BY u.apellido, u.nombre"
         );
         $statement->execute(['id_grupo' => $grupoId]);
@@ -82,7 +82,7 @@ final class Inscripcion
     public function existsActive(int $grupoId, int $studentId): bool
     {
         $statement = Database::connection()->prepare(
-            "SELECT 1 FROM inscripciones WHERE id_grupo = :id_grupo AND id_estudiante = :id_estudiante AND estado <> 'cancelada' LIMIT 1"
+            "SELECT 1 FROM inscripciones WHERE id_grupo = :id_grupo AND id_estudiante = :id_estudiante AND estado NOT IN ('cancelada', 'trasladada') LIMIT 1"
         );
         $statement->execute(['id_grupo' => $grupoId, 'id_estudiante' => $studentId]);
 

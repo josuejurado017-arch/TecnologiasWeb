@@ -69,10 +69,11 @@
         <?php if ($completos): ?>
             <section class="card" id="cupos-completos" style="margin-top:1rem;">
                 <h2>Grupos llenos con demanda pendiente</h2>
-                <p class="panel-note">Revisa el turno de los estudiantes en espera. Si necesitan más capacidad, propón otro tutor; deberá aceptar antes de abrirse un segundo grupo.</p>
+                <p class="panel-note">Si necesitan más capacidad, <strong>divide el grupo</strong> con otro tutor (dos grupos parejos en el mismo turno, sin cambiar el horario) o propón otro tutor para un turno distinto. En los dos casos el tutor debe aceptar antes.</p>
                 <ul class="plain-list">
                     <?php foreach ($completos as $grupoLleno): ?>
                         <li><strong><?= e($grupoLleno['nombre_materia']) ?></strong> · <?= e(TutorMateriaConfig::TURNOS[TutorMateriaConfig::turnoDeHora((string) $grupoLleno['hora_inicio'])]['label'] ?? substr((string) $grupoLleno['hora_inicio'], 0, 5)) ?> · <?= (int) $grupoLleno['cupo_ocupado'] ?>/<?= (int) $grupoLleno['cupo_max'] ?> · <?= (int) $grupoLleno['esperando'] ?> esperando.
+                            <a href="<?= e(app_url('grupos/ubicacion.php?grupo=' . (int) $grupoLleno['id_grupo'])) ?>#dividir">Dividir grupo</a> ·
                             <a href="<?= e(app_url('grupos/asignar_tutor.php?materia=' . (int) $grupoLleno['id_materia'])) ?>">Proponer otro tutor</a>
                         </li>
                     <?php endforeach; ?>

@@ -4,7 +4,7 @@
     <div class="page-heading">
         <div>
             <h1>Períodos de tutoría</h1>
-            <p>Cada período pasa por <strong>borrador → activo → cerrado</strong>. Solo uno puede estar activo; para activar otro, cierra primero el vigente. Un período cerrado es historial: se consulta y admite observaciones, pero no se edita, reactiva ni elimina.</p>
+            <p>Cada período pasa por <strong>borrador → activo → cerrado</strong>. Puede haber <strong>un período activo por <a href="<?= e(app_url('tipos-tutoria/')) ?>">tipo de tutoría</a></strong>; para activar otro del mismo tipo, cierra primero el vigente. Un período cerrado es historial: se consulta y admite observaciones, pero no se edita, reactiva ni elimina.</p>
         </div>
         <a class="button" href="<?= e(app_url('periodos/create.php')) ?>">Nuevo período</a>
     </div>
@@ -23,12 +23,13 @@
 
     <div class="table-wrapper card">
         <table>
-            <thead><tr><th>ID</th><th>Período</th><th>Inicio</th><th>Fin</th><th>Cupos (mín./máx.)</th><th>Si el tutor acepta ambas</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>ID</th><th>Período</th><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Cupos (mín./máx.)</th><th>Si el tutor acepta ambas</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
                 <?php foreach ($periodos as $periodo): ?>
                     <tr data-row>
                         <td><?= (int) $periodo['id_periodo'] ?></td>
                         <td><?= e($periodo['nombre']) ?></td>
+                        <td><?= e($periodo['tipo_nombre']) ?></td>
                         <td><?= e($periodo['fecha_inicio']) ?></td>
                         <td><?= e($periodo['fecha_fin']) ?></td>
                         <td><?= (int) $periodo['cupo_min_grupo'] ?> / <?= (int) $periodo['cupo_max_default'] ?></td>
@@ -64,7 +65,7 @@
                         </td>
                     </tr>
                 <?php endforeach; ?>
-                <tr data-search-empty hidden><td colspan="8" class="empty-state">No se encontraron periodos.</td></tr>
+                <tr data-search-empty hidden><td colspan="9" class="empty-state">No se encontraron periodos.</td></tr>
             </tbody>
         </table>
     </div>

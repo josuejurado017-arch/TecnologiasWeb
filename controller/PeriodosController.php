@@ -12,16 +12,14 @@ declare(strict_types=1);
  *
  * No hay transiciones hacia atras: activar no degrada a otro periodo (hay que
  * cerrar el activo primero) y un periodo cerrado no se reabre.
+ *
+ * Cada periodo es de un tipo de tutoria (db/043). Puede haber un periodo activo
+ * por tipo al mismo tiempo, y la duracion maxima la fija el tipo (Pregrado: 42
+ * dias, el ultimo mes del semestre; vacio = sin tope). El tipo solo se cambia en
+ * borrador.
  */
 final class PeriodosController
 {
-    /**
-     * Regla institucional: la tutoria ocupa el ultimo mes del semestre (julio para
-     * la Gestion I, enero para la Gestion II). Seis semanas dan margen para
-     * feriados o una semana de inscripcion.
-     */
-    public const DURACION_MAXIMA_DIAS = 42;
-
     public const ESTADOS = ['borrador' => 'Borrador', 'activa' => 'Activo', 'cerrada' => 'Cerrado'];
 
     private Periodo $model;
@@ -51,6 +49,20 @@ final class PeriodosController
         return $this->model->impactoCierre($id);
     }
 
+    /** Tipos que se pueden elegir en el formulario (activos, mas el guardado del periodo si se desactivo). */
+    public function tiposParaFormulario(?int $tipoGuardado = null): array
+    {
+        $tipos = (new TipoTutoria())->activos();
+        if ($tipoGuardado !== null && !in_array($tipoGuardado, array_map('intval', array_column($tipos, 'id_tipo_tutoria')), true)) {
+            $guardado = (new TipoTutoria())->findById($tipoGuardado);
+            if ($guardado !== null) {
+                $tipos[] = $guardado;
+            }
+        }
+
+        return $tipos;
+    }
+
     /** Campos que se pueden editar segun el estado (la vista los bloquea igual). */
     public function camposEditables(array $periodo): array
     {
@@ -58,6 +70,7 @@ final class PeriodosController
             return [];
         }
         if ($periodo['estado'] === 'activa') {
+            // El tipo no cambia en un periodo activo: sus grupos y ofertas ya son de ese tipo.
             $campos = ['nombre', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'];
             if ($this->model->countGrupos((int) $periodo['id_periodo']) === 0) {
                 $campos[] = 'fecha_inicio';
@@ -65,13 +78,13 @@ final class PeriodosController
             return $campos;
         }
 
-        return ['nombre', 'fecha_inicio', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'];
+        return ['nombre', 'id_tipo_tutoria', 'fecha_inicio', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'];
     }
 
     public function store(array $input): array
     {
         $data = $this->normalize($input);
-        $errors = $this->validate($data, null);
+        $errors = $this->validate($data, null, null);
         if ($errors) {
             return [$data, $errors];
         }
@@ -103,12 +116,12 @@ final class PeriodosController
         $editables = $this->camposEditables($actual);
         $propuesto = $this->normalize($input);
         $data = [];
-        foreach (['nombre', 'fecha_inicio', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'] as $campo) {
+        foreach (['nombre', 'id_tipo_tutoria', 'fecha_inicio', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'] as $campo) {
             $data[$campo] = in_array($campo, $editables, true) ? $propuesto[$campo] : $actual[$campo];
         }
         $data['estado'] = $actual['estado'];
 
-        $errors = $this->validate($data, $id);
+        $errors = $this->validate($data, $id, (int) $actual['id_tipo_tutoria']);
         if ($actual['estado'] === 'activa') {
             if ($data['fecha_fin'] < $actual['fecha_fin']) {
                 $errors[] = 'En un período activo la fecha de fin solo se puede extender (actual: ' . $actual['fecha_fin'] . ').';
@@ -148,7 +161,7 @@ final class PeriodosController
         return [$data, []];
     }
 
-    /** Borrador -> activo. Si ya hay un periodo activo, hay que cerrarlo primero. */
+    /** Borrador -> activo. Si ya hay un periodo activo del mismo tipo, hay que cerrarlo primero. */
     public function activate(int $id, int $userId): ?string
     {
         $connection = Database::connection();
@@ -165,12 +178,14 @@ final class PeriodosController
                     ? 'Un período cerrado es historial y no se reactiva.'
                     : 'El período ya está activo.';
             }
-            $otro = $this->model->lockOtroActivo($id);
+            $periodo = $this->model->findById($id);
+            // Bloquear el tipo serializa dos activaciones simultaneas del mismo tipo.
+            (new TipoTutoria())->lock((int) $periodo['id_tipo_tutoria']);
+            $otro = $this->model->lockOtroActivo($id, (int) $periodo['id_tipo_tutoria']);
             if ($otro !== null) {
                 $connection->rollBack();
-                return 'Ya hay un período activo ("' . $otro['nombre'] . '"). Ciérralo antes de activar otro.';
+                return 'Ya hay un período activo de tipo "' . $periodo['tipo_nombre'] . '" ("' . $otro['nombre'] . '"). Ciérralo antes de activar otro del mismo tipo.';
             }
-            $periodo = $this->model->findById($id);
             if ((string) $periodo['fecha_fin'] < date('Y-m-d')) {
                 $connection->rollBack();
                 return 'La fecha de fin del período ya pasó. Corrígela antes de activarlo.';
@@ -181,6 +196,14 @@ final class PeriodosController
             $connection->rollBack();
             error_log($exception->getMessage());
             return 'No se pudo activar el período.';
+        }
+
+        // Las ofertas son por periodo: sin este aviso todas las materias quedarian
+        // "sin tutor" hasta que cada tutor entrara por su cuenta a renovarlas.
+        try {
+            (new Notificacion())->notifyTutoresRenovarOferta($connection, $id, (string) $periodo['nombre']);
+        } catch (Throwable $exception) {
+            error_log('Aviso renovar oferta: ' . $exception->getMessage());
         }
 
         return null;
@@ -266,10 +289,12 @@ final class PeriodosController
         $minGroup = filter_var($input['cupo_min_grupo'] ?? null, FILTER_VALIDATE_INT);
         $maxDefault = filter_var($input['cupo_max_default'] ?? null, FILTER_VALIDATE_INT);
         $maxTutor = filter_var($input['max_grupos_tutor'] ?? null, FILTER_VALIDATE_INT);
+        $tipo = filter_var($input['id_tipo_tutoria'] ?? null, FILTER_VALIDATE_INT);
         $modalidadAmbas = (string) ($input['modalidad_ambas'] ?? 'virtual');
 
         return [
             'nombre' => normalize_name((string) ($input['nombre'] ?? '')),
+            'id_tipo_tutoria' => $tipo !== false && $tipo !== null ? $tipo : 0,
             'fecha_inicio' => trim((string) ($input['fecha_inicio'] ?? '')),
             'fecha_fin' => trim((string) ($input['fecha_fin'] ?? '')),
             'cupo_min_grupo' => $minGroup !== false ? $minGroup : 3,
@@ -281,9 +306,17 @@ final class PeriodosController
         ];
     }
 
-    private function validate(array $data, ?int $ignoreId): array
+    /** $tipoGuardado: tipo que el periodo ya tenia (se conserva aunque se haya desactivado). */
+    private function validate(array $data, ?int $ignoreId, ?int $tipoGuardado): array
     {
         $errors = [];
+
+        $tipo = (int) $data['id_tipo_tutoria'] > 0 ? (new TipoTutoria())->findById((int) $data['id_tipo_tutoria']) : null;
+        if ($tipo === null) {
+            $errors[] = 'Seleccione un tipo de tutoría válido.';
+        } elseif ($tipo['estado'] !== 'activo' && (int) $tipo['id_tipo_tutoria'] !== $tipoGuardado) {
+            $errors[] = 'El tipo de tutoría "' . $tipo['nombre'] . '" está inactivo.';
+        }
 
         $nameError = validation_label((string) $data['nombre'], 'nombre del período', 120);
         if ($nameError !== null) {
@@ -302,9 +335,9 @@ final class PeriodosController
         }
         if ($start !== null && $end !== null && $end < $start) {
             $errors[] = 'La fecha de fin debe ser posterior o igual a la de inicio.';
-        } elseif ($start !== null && $end !== null && $start->diff($end)->days + 1 > self::DURACION_MAXIMA_DIAS) {
-            $errors[] = 'Un período de tutoría dura como máximo ' . intdiv(self::DURACION_MAXIMA_DIAS, 7)
-                . ' semanas: es el último mes del semestre (julio o enero).';
+        } elseif ($start !== null && $end !== null && $tipo !== null && $tipo['duracion_max_dias'] !== null
+            && $start->diff($end)->days + 1 > (int) $tipo['duracion_max_dias']) {
+            $errors[] = 'Un período de tipo "' . $tipo['nombre'] . '" dura como máximo ' . (int) $tipo['duracion_max_dias'] . ' días.';
         }
 
         $maxTutor = (int) $data['max_grupos_tutor'];

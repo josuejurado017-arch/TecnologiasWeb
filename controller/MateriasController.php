@@ -90,7 +90,9 @@ final class MateriasController
             return null;
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
-            return 'No se puede eliminar la materia porque tiene tutores o tutorias asociadas.';
+            // Desde db/041 cualquier referencia (tutores, ofertas, demanda, grupos o
+            // rechazos) bloquea el borrado en la base: solo se elimina una materia sin uso.
+            return 'No se puede eliminar la materia porque ya tiene tutores, solicitudes o grupos asociados.';
         }
     }
 

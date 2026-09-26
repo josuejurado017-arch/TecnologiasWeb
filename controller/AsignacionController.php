@@ -213,17 +213,46 @@ final class AsignacionController
     // ------------------------------------------------------------------
 
     /**
-     * Reprocesa la cola de espera de una materia en el periodo indicado (o el activo).
+     * Reprocesa la cola de espera de una materia en el periodo indicado o, sin
+     * periodo, en todos los periodos activos (uno por tipo de tutoria, db/043): el
+     * motor no depende del tipo que el usuario tenga elegido en el portal.
      * $allowCreate=false limita a grupos ya existentes: se usa tras una cancelacion
      * administrativa para no recrear al instante el grupo que el admin acaba de cancelar.
      * Devuelve [atendidos => n, pendientes => n].
      */
+    /**
+     * Reproceso tras un cambio en un grupo (cancelacion, cambio de tutor, division):
+     * solo en el periodo de ese grupo. Sin id_periodo, en todos los activos.
+     */
+    public function reprocesarMateriaDelGrupo(array $grupo, bool $allowCreate = true): array
+    {
+        $periodo = isset($grupo['id_periodo']) ? (new Periodo())->findById((int) $grupo['id_periodo']) : null;
+        if (isset($grupo['id_periodo']) && $periodo === null) {
+            return ['atendidos' => 0, 'pendientes' => 0];
+        }
+
+        return $this->reprocesarMateria((int) $grupo['id_materia'], $periodo, null, $allowCreate);
+    }
+
     public function reprocesarMateria(int $matterId, ?array $periodo = null, ?int $excludeStudentId = null, bool $allowCreate = true): array
     {
         $summary = ['atendidos' => 0, 'pendientes' => 0];
+        if ($periodo === null) {
+            try {
+                $activos = (new Periodo())->activas();
+            } catch (Throwable $exception) {
+                error_log('Reproceso de demanda: ' . $exception->getMessage());
+                return $summary;
+            }
+            foreach ($activos as $activo) {
+                $parcial = $this->reprocesarMateria($matterId, $activo, $excludeStudentId, $allowCreate);
+                $summary['atendidos'] += $parcial['atendidos'];
+                $summary['pendientes'] += $parcial['pendientes'];
+            }
+            return $summary;
+        }
         try {
-            $periodo ??= (new Periodo())->activa();
-            if (!$periodo || $periodo['estado'] !== 'activa') {
+            if ($periodo['estado'] !== 'activa') {
                 return $summary;
             }
             $periodoId = (int) $periodo['id_periodo'];
@@ -289,7 +318,7 @@ final class AsignacionController
             return true;
         }
 
-        return (new TutorMateriaConfig())->hasApprovedOffer($matterId);
+        return (new TutorMateriaConfig())->hasApprovedOffer($matterId, $periodoId);
     }
 
     private function assignMatter(int $studentId, int $matterId, int $periodoId, int $cupoMin, int $cupoMax, bool $reprocessing = false, bool $allowCreate = true): array
@@ -447,7 +476,7 @@ final class AsignacionController
         // en el periodo: no se vuelven a proponer (db/028, grupo_rechazos).
         $rechazados = $this->grupos->rejectedSlotKeys($periodoId, $matterId);
         $bloques = array_values(array_filter(
-            (new TutorMateriaConfig())->slotsForMatter($matterId),
+            (new TutorMateriaConfig())->slotsForMatter($matterId, $periodoId),
             static fn (array $b): bool => !isset($rechazados[Grupo::slotKey($b['id_tutor'], $b['hora_inicio'], $b['hora_fin'])])
         ));
 

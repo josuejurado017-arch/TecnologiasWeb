@@ -5,7 +5,7 @@ Auth::requireRole('administrador');
 $activePage = 'periodos';
 
 $controller = new PeriodosController();
-$data = ['nombre' => '', 'fecha_inicio' => '', 'fecha_fin' => '', 'cupo_min_grupo' => 3, 'cupo_max_default' => 20, 'modalidad_ambas' => 'virtual', 'estado' => 'borrador'];
+$data = ['nombre' => '', 'id_tipo_tutoria' => TipoTutoria::actual(), 'fecha_inicio' => '', 'fecha_fin' => '', 'cupo_min_grupo' => 3, 'cupo_max_default' => 20, 'modalidad_ambas' => 'virtual', 'estado' => 'borrador'];
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -20,5 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$tipos = $controller->tiposParaFormulario();
 $mode = 'create';
 require dirname(__DIR__, 2) . '/views/periodos/form.php';

@@ -14,7 +14,7 @@ $hora = static fn (string $h): string => substr($h, 0, 5);
     <div class="page-heading">
         <div>
             <h1>Mis materias</h1>
-            <p>Renueva tu oferta en cada período (máximo dos materias y dos grupos). La coordinación revisa tus turnos y modalidad antes de formar grupos.</p>
+            <p>Renueva tu oferta en cada período (máximo <?= e(TutorMateriaConfig::cantidadEnLetras((new TutorMateriaConfig())->limiteCarga(), 'materia', 'materias')) ?> y <?= e(TutorMateriaConfig::cantidadEnLetras((new TutorMateriaConfig())->limiteCarga(), 'grupo', 'grupos')) ?>). La coordinación revisa tus turnos y modalidad antes de formar grupos.</p>
         </div>
     </div>
 

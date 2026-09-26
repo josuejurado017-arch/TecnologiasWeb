@@ -100,14 +100,6 @@ final class Tutor
         ]);
     }
 
-    public function delete(int $id): void
-    {
-        $statement = Database::connection()->prepare(
-            'DELETE FROM tutores WHERE id_tutor = :id_tutor'
-        );
-        $statement->execute(['id_tutor' => $id]);
-    }
-
     public function findIdByUserId(int $userId): ?int
     {
         $statement = Database::connection()->prepare(

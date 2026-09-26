@@ -28,7 +28,7 @@ $demMaterias = $data['demandaMaterias'] ?? [];
         <form method="get" action="<?= e(app_url('reportes/campania.php')) ?>">
             <select name="periodo" onchange="this.form.submit()">
                 <?php foreach ($periodos as $p): ?>
-                    <option value="<?= (int) $p['id_periodo'] ?>" <?= $periodo && (int) $periodo['id_periodo'] === (int) $p['id_periodo'] ? 'selected' : '' ?>><?= e($p['nombre']) ?> (<?= e($p['estado']) ?>)</option>
+                    <option value="<?= (int) $p['id_periodo'] ?>" <?= $periodo && (int) $periodo['id_periodo'] === (int) $p['id_periodo'] ? 'selected' : '' ?>><?= e($p['nombre']) ?> · <?= e($p['tipo_nombre']) ?> (<?= e($p['estado']) ?>)</option>
                 <?php endforeach; ?>
             </select>
         </form>

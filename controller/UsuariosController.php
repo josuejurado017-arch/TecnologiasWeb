@@ -75,10 +75,26 @@ final class UsuariosController
         }
     }
 
+    /**
+     * Edita los datos de la cuenta. El rol no cambia aqui: cada rol tiene su perfil
+     * (estudiante o tutor) con historial propio, y cambiarlo dejaria un perfil
+     * huerfano o una cuenta sin perfil. Para otro rol se crea otra cuenta.
+     */
     public function update(int $id, array $input): array
     {
         $data = $this->normalize($input);
+        $current = $this->model->findById($id);
+        if ($current === null) {
+            return [$data, ['El usuario ya no existe.']];
+        }
         $errors = $this->validate($data, true, null);
+        if ((int) $data['id_rol'] !== (int) $current['id_rol']) {
+            $errors[] = 'El rol de una cuenta no se puede cambiar. Si la persona necesita otro rol, crea una cuenta nueva.';
+        }
+        [$bloqueo, $efecto] = EstadoCuenta::prepararCambio($id, (string) $current['estado'], $data['estado']);
+        if ($bloqueo !== null) {
+            $errors[] = $bloqueo;
+        }
 
         if ($errors) {
             return [$data, $errors];
@@ -86,36 +102,50 @@ final class UsuariosController
 
         try {
             $this->model->update($id, $data);
-            return [$data, []];
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
             return [$data, ['El correo o el usuario ya pueden estar registrados.']];
         }
+        if ($efecto !== null) {
+            $efecto();
+        }
+
+        return [$data, []];
     }
 
     public function deactivate(int $id): ?string
     {
-        $currentUser = Auth::user();
-        if ((int) ($currentUser['id_usuario'] ?? 0) === $id) {
-            return 'No puede desactivar su propia cuenta.';
+        $bloqueo = EstadoCuenta::bloqueoDesactivar($id);
+        if ($bloqueo !== null) {
+            return $bloqueo;
         }
 
         try {
-            return $this->model->deactivate($id) ? null : 'El usuario ya estaba inactivo o no existe.';
+            if (!$this->model->deactivate($id)) {
+                return 'El usuario ya estaba inactivo o no existe.';
+            }
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
             return 'No fue posible desactivar el usuario.';
         }
+        EstadoCuenta::despuesDeDesactivar($id);
+
+        return null;
     }
 
     public function activate(int $id): ?string
     {
         try {
-            return $this->model->activate($id) ? null : 'La cuenta ya estaba activa o no existe.';
+            if (!$this->model->activate($id)) {
+                return 'La cuenta ya estaba activa o no existe.';
+            }
         } catch (PDOException $exception) {
             error_log($exception->getMessage());
             return 'No fue posible activar la cuenta.';
         }
+        EstadoCuenta::despuesDeActivar($id);
+
+        return null;
     }
 
     private function normalize(array $input): array

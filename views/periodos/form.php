@@ -2,7 +2,7 @@
 $isEditing = ($mode ?? 'create') === 'edit';
 $title = $isEditing ? 'Editar período' : 'Nuevo período';
 $action = $isEditing ? app_url('periodos/edit.php?id=' . (int) $data['id_periodo']) : app_url('periodos/create.php');
-$editables = $editables ?? ['nombre', 'fecha_inicio', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'];
+$editables = $editables ?? ['nombre', 'id_tipo_tutoria', 'fecha_inicio', 'fecha_fin', 'cupo_min_grupo', 'cupo_max_default', 'max_grupos_tutor', 'modalidad_ambas'];
 $esActivo = ($data['estado'] ?? 'borrador') === 'activa';
 $bloqueado = static fn (string $campo): string => in_array($campo, $editables, true) ? '' : ' disabled';
 require __DIR__ . '/../layouts/header.php';
@@ -26,6 +26,17 @@ require __DIR__ . '/../layouts/header.php';
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <label for="nombre">Nombre del período</label>
             <input id="nombre" name="nombre" type="text" minlength="3" maxlength="120" required value="<?= e($data['nombre'] ?? '') ?>" placeholder="Ej. Tutorías Julio 2027 (Gestión I)"<?= $bloqueado('nombre') ?>>
+            <label for="id_tipo_tutoria">Tipo de tutoría</label>
+            <select id="id_tipo_tutoria" name="id_tipo_tutoria" required aria-describedby="tipo_ayuda"<?= $bloqueado('id_tipo_tutoria') ?>>
+                <?php foreach ($tipos as $tipoOpcion): ?>
+                    <option value="<?= (int) $tipoOpcion['id_tipo_tutoria'] ?>" <?= (int) ($data['id_tipo_tutoria'] ?? 0) === (int) $tipoOpcion['id_tipo_tutoria'] ? 'selected' : '' ?>><?= e($tipoOpcion['nombre']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <p class="form-hint" id="tipo_ayuda">
+                <?= in_array('id_tipo_tutoria', $editables, true) ? 'Solo se cambia mientras el período está en borrador.' : 'El tipo ya no se cambia: el período está activo.' ?>
+                Duración máxima: <?= e(implode(' · ', array_map(static fn (array $t): string => $t['nombre'] . ' ' . ($t['duracion_max_dias'] !== null ? (int) $t['duracion_max_dias'] . ' días' : 'sin tope'), $tipos))) ?>.
+                <?php if (!$tipos): ?>No hay tipos activos: <a href="<?= e(app_url('tipos-tutoria/create.php')) ?>">crea uno</a>.<?php endif; ?>
+            </p>
             <div class="form-grid">
                 <div>
                     <label for="fecha_inicio">Fecha de inicio</label>
@@ -48,7 +59,7 @@ require __DIR__ . '/../layouts/header.php';
                     <input id="max_grupos_tutor" name="max_grupos_tutor" type="number" min="1" max="2" required value="<?= e((string) ($data['max_grupos_tutor'] ?? 2)) ?>" aria-describedby="max_grupos_tutor_ayuda"<?= $bloqueado('max_grupos_tutor') ?>>
                 </div>
             </div>
-            <p class="form-hint">El período es el último mes del semestre (julio o enero): como máximo <?= intdiv(PeriodosController::DURACION_MAXIMA_DIAS, 7) ?> semanas.</p>
+            <p class="form-hint">El período no tiene que ocupar el mes completo: puede durar lo que se necesite dentro del máximo de su tipo.</p>
             <p class="form-hint" id="max_grupos_tutor_ayuda">Cada tutor lleva como máximo esta cantidad de grupos en el período, siempre en turnos distintos. Cada estudiante lleva una sola tutoría.</p>
             <label for="modalidad_ambas">Modalidad cuando el tutor acepta ambas</label>
             <select id="modalidad_ambas" name="modalidad_ambas" aria-describedby="modalidad_ambas_ayuda"<?= $bloqueado('modalidad_ambas') ?>>

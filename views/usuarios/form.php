@@ -59,9 +59,18 @@ require __DIR__ . '/../layouts/header.php';
                     <label for="confirmacion">Confirmar contraseña <?= $isEditing ? '(opcional)' : '' ?></label>
                     <input id="confirmacion" name="confirmacion" type="password" minlength="8" <?= $isEditing ? '' : 'required' ?> autocomplete="new-password" data-password-confirmation>
                 </div>
+                <?php if ($isEditing): ?>
+                    <?php $rolActual = array_values(array_filter($roles, static fn (array $r): bool => (string) $r['id_rol'] === (string) ($data['id_rol'] ?? '')))[0]['nombre_rol'] ?? ''; ?>
+                    <div>
+                        <label for="rol_actual">Rol</label>
+                        <input id="rol_actual" type="text" value="<?= e($rolActual) ?>" readonly aria-describedby="rol_ayuda">
+                        <input type="hidden" name="id_rol" value="<?= e((string) ($data['id_rol'] ?? '')) ?>">
+                        <p class="form-hint" id="rol_ayuda">El rol no se cambia: cada rol tiene su propio perfil e historial. Para otro rol, crea una cuenta nueva.</p>
+                    </div>
+                <?php else: ?>
                 <div>
                     <label for="id_rol">Rol</label>
-                    <select id="id_rol" name="id_rol" required <?= $isEditing ? '' : 'data-rol-select' ?>>
+                    <select id="id_rol" name="id_rol" required data-rol-select>
                         <option value="">Seleccione</option>
                         <?php foreach ($roles as $role): ?>
                             <option value="<?= (int) $role['id_rol'] ?>" data-rol="<?= e($role['nombre_rol']) ?>" <?= (string) ($data['id_rol'] ?? '') === (string) $role['id_rol'] ? 'selected' : '' ?>>
@@ -70,6 +79,7 @@ require __DIR__ . '/../layouts/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php endif; ?>
                 <?php if ($isEditing): ?>
                     <div>
                         <label for="estado">Estado</label>

@@ -23,6 +23,7 @@ $etiquetasResumen = [
         <div>
             <h1><?= e($periodo['nombre']) ?></h1>
             <p><span class="badge badge-<?= e($periodo['estado']) ?>"><?= e(PeriodosController::ESTADOS[$periodo['estado']] ?? $periodo['estado']) ?></span>
+                · <?= e($periodo['tipo_nombre']) ?>
                 · <?= e(date('d/m/Y', strtotime((string) $periodo['fecha_inicio']))) ?> al <?= e(date('d/m/Y', strtotime((string) $periodo['fecha_fin']))) ?></p>
         </div>
         <div class="actions">

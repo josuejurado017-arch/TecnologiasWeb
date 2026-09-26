@@ -163,7 +163,7 @@ final class TutorPortalController
     {
         if ((new Periodo())->activa() === null) { return []; }
         $tutorId = $this->tutores->findIdByUserId($userId);
-        if ($tutorId !== null && $this->config->materiasOcupadas($tutorId) >= TutorMateriaConfig::MAX_MATERIAS) {
+        if ($tutorId !== null && $this->config->materiasOcupadas($tutorId) >= $this->config->limiteCarga()) {
             return [];
         }
         return $this->model->availableSubjects($userId);
@@ -182,8 +182,8 @@ final class TutorPortalController
             return 'Seleccione una materia válida.';
         }
         $tutorId = $this->tutores->findIdByUserId($userId);
-        if ($tutorId !== null && $this->config->materiasOcupadas($tutorId) >= TutorMateriaConfig::MAX_MATERIAS) {
-            return 'Ya tienes dos materias en este período.';
+        if ($tutorId !== null && $this->config->materiasOcupadas($tutorId) >= $this->config->limiteCarga()) {
+            return 'Ya tienes ' . TutorMateriaConfig::cantidadEnLetras($this->config->limiteCarga(), 'materia', 'materias') . ' en este período.';
         }
 
         try {
@@ -216,6 +216,10 @@ final class TutorPortalController
         } catch (RuntimeException $exception) {
             return $exception->getMessage();
         }
+
+        // Su oferta deja de contar: quienes esperaban la materia pasan a "sin tutor"
+        // o a otro tutor, en lugar de seguir esperando companeros de un turno que ya no existe.
+        (new AsignacionController())->reprocesarMateria($subjectId);
 
         return null;
     }

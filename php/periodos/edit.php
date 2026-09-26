@@ -37,5 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$tipos = $controller->tiposParaFormulario((int) $periodo['id_tipo_tutoria']);
 $mode = 'edit';
 require dirname(__DIR__, 2) . '/views/periodos/form.php';

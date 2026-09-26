@@ -7,7 +7,9 @@ if (Auth::check()) {
     exit;
 }
 
-$error = null;
+$error = ($_GET['cuenta'] ?? '') === 'inactiva'
+    ? 'Tu sesión se cerró porque la cuenta está inactiva. Consulta con la coordinación de tutorías.'
+    : null;
 $success = ($_GET['registered'] ?? '') === '1'
     ? 'Cuenta creada correctamente. Ya puedes iniciar sesión.'
     : (($_GET['tutor_registered'] ?? '') === '1' ? 'Cuenta de tutor creada. Ya puedes iniciar sesión y configurar tus materias; recibirás grupos cuando la coordinación apruebe tu habilitación.' : null);

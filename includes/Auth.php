@@ -33,6 +33,35 @@ final class Auth
         return $_SESSION['user'] ?? null;
     }
 
+    /**
+     * Relee la cuenta en cada peticion: una cuenta desactivada (o borrada) pierde la
+     * sesion de inmediato, y el rol y el estado de la sesion son siempre los de la
+     * base. Devuelve false si la sesion se cerro.
+     */
+    public static function revalidar(): bool
+    {
+        if (!self::check()) {
+            return true;
+        }
+
+        $statement = Database::connection()->prepare(
+            'SELECT u.estado, u.id_rol, r.nombre_rol FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol WHERE u.id_usuario = :id LIMIT 1'
+        );
+        $statement->execute(['id' => (int) $_SESSION['user']['id_usuario']]);
+        $cuenta = $statement->fetch();
+        if (!$cuenta || $cuenta['estado'] !== 'activo') {
+            self::logout();
+
+            return false;
+        }
+
+        $_SESSION['user']['estado'] = $cuenta['estado'];
+        $_SESSION['user']['id_rol'] = $cuenta['id_rol'];
+        $_SESSION['user']['nombre_rol'] = $cuenta['nombre_rol'];
+
+        return true;
+    }
+
     public static function requireLogin(): void
     {
         if (!self::check()) {
@@ -66,8 +95,10 @@ final class Auth
      * El administrador tiene acceso total. Reemplaza a la antigua tabla permisos_rol.
      */
     private const ROLE_MODULES = [
-        'tutor' => ['dashboard', 'evaluaciones', 'tutores', 'tutorias', 'asignaciones'],
-        'estudiante' => ['dashboard', 'evaluaciones', 'materias', 'tutores', 'tutorias'],
+        // tutores = Mi perfil de tutor; asignaciones = Mis materias; tutorias = Mis grupos y asistencia.
+        'tutor' => ['dashboard', 'tutores', 'tutorias', 'asignaciones'],
+        // tutorias = Solicitar apoyo y Mis tutorias; evaluaciones = Mis evaluaciones.
+        'estudiante' => ['dashboard', 'evaluaciones', 'tutorias'],
     ];
 
     public static function can(string $module): bool

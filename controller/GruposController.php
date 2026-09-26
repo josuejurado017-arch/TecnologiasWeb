@@ -486,7 +486,7 @@ final class GruposController
         // nuevos aqui recrearia al instante el que el administrador acaba de cancelar
         // (mismo tutor, mismo bloque). El bloque liberado se aprovechara en el siguiente
         // disparador natural (nueva disponibilidad, tutor habilitado o solicitud nueva).
-        (new AsignacionController())->reprocesarMateria((int) $grupo['id_materia'], null, null, false);
+        (new AsignacionController())->reprocesarMateriaDelGrupo($grupo, false);
 
         return null;
     }
@@ -663,7 +663,7 @@ final class GruposController
         // A diferencia de cancel(), aqui SI se permite crear grupos: la combinacion
         // rechazada quedo registrada y el motor la salta, asi que solo puede proponer
         // otro tutor u otro horario (que a su vez quedara por aprobar).
-        (new AsignacionController())->reprocesarMateria((int) $grupo['id_materia']);
+        (new AsignacionController())->reprocesarMateriaDelGrupo($grupo);
 
         return null;
     }
@@ -686,7 +686,7 @@ final class GruposController
         }
         $maxGrupos = min(2, (int) ($periodo['max_grupos_tutor'] ?? 2));
         $disponibles = [];
-        foreach ((new TutorMateriaConfig())->tutoresConTurno((int) $grupo['id_materia'], $turno, (string) $grupo['modalidad']) as $tutor) {
+        foreach ((new TutorMateriaConfig())->tutoresConTurno((int) $grupo['id_materia'], $turno, (string) $grupo['modalidad'], (int) $grupo['id_periodo']) as $tutor) {
             $tutorId = (int) $tutor['id_tutor'];
             if ($tutorId === (int) $grupo['id_tutor']
                 || $this->grupos->tutorOcupaTurno($tutorId, (string) $grupo['hora_inicio'], (string) $grupo['hora_fin'], (int) $grupo['id_periodo'])
@@ -774,6 +774,11 @@ final class GruposController
      */
     public function evaluarInscripcion(array $grupo, int $studentId): array
     {
+        $cierre = $this->grupos->cierreInscripcion((int) $grupo['id_grupo']);
+        if ($cierre !== null && $cierre < date('Y-m-d')) {
+            return ['bloqueo' => 'La inscripción a este grupo cerró el ' . date('d/m/Y', strtotime($cierre))
+                . ' (' . Grupo::DIAS_INSCRIPCION_TARDIA . ' días después de la primera sesión).', 'aviso' => null];
+        }
         $periodoId = (int) $grupo['id_periodo'];
         $actual = (new AsignacionController())->tutoriaDelPeriodo($studentId, $periodoId);
         if ($actual !== null && $actual['tipo'] === 'inscripcion') {
@@ -955,7 +960,7 @@ final class GruposController
         }
 
         if ($disuelto) {
-            (new AsignacionController())->reprocesarMateria((int) $grupo['id_materia']);
+            (new AsignacionController())->reprocesarMateriaDelGrupo($grupo);
             return [null, 'El grupo quedó con menos de ' . $cupoMin . ' estudiantes y se disolvió: los demás volvieron a interés registrado.'];
         }
         if ($quedan < $cupoMin) {

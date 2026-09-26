@@ -141,6 +141,10 @@ a { color: var(--upds-teal); }
 .topbar-action:hover { background: var(--upds-panel-2); border-color: var(--upds-line); box-shadow: none; color: white; transform: none; }
 .topbar-action.highlight { background: rgba(220, 174, 54, 0.22); color: #f6d67a; }
 .notification-dot { background: var(--upds-purple); border-radius: 50%; height: 7px; width: 7px; }
+.tipo-selector { align-items: center; display: flex; gap: 0.5rem; margin: 0 0 0 auto; min-width: 0; }
+.tipo-selector label { color: var(--upds-muted); font-size: 0.72rem; margin: 0; white-space: nowrap; }
+.tipo-selector select { margin: 0; max-width: 20rem; min-height: 34px; padding: 0.4rem 0.6rem; width: auto; }
+.tipo-selector + .topbar-actions { margin-left: 0.75rem; }
 
 .container { margin: 0 auto; max-width: 1600px; padding: clamp(1.5rem, 4vw, 3.2rem) clamp(1.1rem, 4vw, 3.5rem); width: 100%; }
 .narrow { max-width: 520px; }
@@ -291,6 +295,9 @@ tbody tr:hover { background: rgba(130, 117, 232, 0.06); }
     .menu-toggle span { background: var(--upds-ink); display: block; height: 2px; width: 19px; }
     .topbar { justify-content: flex-start; }
     .topbar-actions { margin-left: auto; margin-right: 0.35rem; }
+    .tipo-selector label { display: none; }
+    .tipo-selector select { max-width: 9.5rem; }
+    .tipo-selector + .topbar-actions { margin-left: 0.35rem; }
     .topbar-action span:not(.notification-dot) { display: none; }
     .topbar-user { display: none; }
     .page-heading, .hero-heading { align-items: flex-start; flex-direction: column; }

@@ -43,6 +43,7 @@ require_once dirname(__DIR__) . '/models/Usuario.php';
 require_once dirname(__DIR__) . '/models/Carrera.php';
 require_once dirname(__DIR__) . '/models/Materia.php';
 require_once dirname(__DIR__) . '/models/Periodo.php';
+require_once dirname(__DIR__) . '/models/TipoTutoria.php';
 require_once dirname(__DIR__) . '/models/EspacioTutoria.php';
 require_once dirname(__DIR__) . '/models/Grupo.php';
 require_once dirname(__DIR__) . '/models/Inscripcion.php';
@@ -63,16 +64,19 @@ require_once dirname(__DIR__) . '/models/Notificacion.php';
 require_once dirname(__DIR__) . '/models/RegistroEstudiante.php';
 require_once dirname(__DIR__) . '/models/RegistroTutor.php';
 require_once dirname(__DIR__) . '/models/TutorPortal.php';
+require_once dirname(__DIR__) . '/models/EstadoCuenta.php';
 require_once dirname(__DIR__) . '/controller/AuthController.php';
 require_once dirname(__DIR__) . '/controller/UsuariosController.php';
 require_once dirname(__DIR__) . '/controller/CarrerasController.php';
 require_once dirname(__DIR__) . '/controller/MateriasController.php';
 require_once dirname(__DIR__) . '/controller/PeriodosController.php';
+require_once dirname(__DIR__) . '/controller/TiposTutoriaController.php';
 require_once dirname(__DIR__) . '/controller/EspaciosController.php';
 require_once dirname(__DIR__) . '/controller/AsignacionController.php';
 require_once dirname(__DIR__) . '/controller/AsistenciaSesionController.php';
 require_once dirname(__DIR__) . '/controller/EvaluacionGrupoController.php';
 require_once dirname(__DIR__) . '/controller/GruposController.php';
+require_once dirname(__DIR__) . '/controller/DivisionGrupoController.php';
 require_once dirname(__DIR__) . '/controller/HabilitacionTutorController.php';
 require_once dirname(__DIR__) . '/controller/OfertaTutorController.php';
 require_once dirname(__DIR__) . '/controller/DashboardController.php';
@@ -90,6 +94,12 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
         'samesite' => 'Lax',
     ]);
     session_start();
+}
+
+// Una cuenta desactivada no conserva la sesion abierta (Auth::revalidar).
+if (PHP_SAPI !== 'cli' && !Auth::revalidar()) {
+    header('Location: ' . app_url('login.php?cuenta=inactiva'));
+    exit;
 }
 
 // "En curso" automatico (db/035): no hay tareas programadas, asi que se revisa al

@@ -20,7 +20,14 @@ foreach ($grupos as $grupo) {
     $sesionesPorGrupo[$grupo['id_grupo']] = $sesionModel->forGroup((int) $grupo['id_grupo']);
 }
 
-$messages = ['propuesta' => 'Enlace propuesto. La coordinación lo revisará y te avisará.'];
+// Propuestas de la coordinacion para tomar la mitad de un grupo lleno (db/042).
+$divisiones = (new DivisionGrupoController())->pendientesDelTutor((int) $user['id_usuario']);
+
+$messages = [
+    'propuesta' => 'Enlace propuesto. La coordinación lo revisará y te avisará.',
+    'division-aceptada' => 'Aceptaste la división: el grupo nuevo ya aparece en tu lista. La coordinación definirá su aula o enlace.',
+    'division-rechazada' => 'Rechazaste la división. Se avisó a la coordinación.',
+];
 $message = $messages[$_GET['message'] ?? ''] ?? null;
 $error = isset($_GET['error']) && is_string($_GET['error']) ? $_GET['error'] : null;
 

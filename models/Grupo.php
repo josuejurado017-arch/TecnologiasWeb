@@ -13,6 +13,33 @@ final class Grupo
     public const ESTADOS_VIGENTES = ['por_aprobar', 'formacion', 'confirmado', 'en_curso'];
 
     /**
+     * Como en las materias de la UPDS, a un grupo se puede entrar hasta 4 dias
+     * despues de su primera sesion (dias corridos, la primera sesion cuenta como
+     * dia 0). Un grupo sin calendario (por aprobar) sigue abierto.
+     */
+    public const DIAS_INSCRIPCION_TARDIA = 4;
+
+    /** Condicion SQL "el grupo {$alias} admite inscripciones nuevas". */
+    public static function sqlInscripcionAbierta(string $alias = 'g'): string
+    {
+        return "NOT EXISTS (SELECT 1 FROM sesiones_tutoria s_ins WHERE s_ins.id_grupo = {$alias}.id_grupo
+                  AND s_ins.estado <> 'cancelada'
+                  AND s_ins.fecha < DATE_SUB(CURDATE(), INTERVAL " . self::DIAS_INSCRIPCION_TARDIA . ' DAY))';
+    }
+
+    /** Ultimo dia (Y-m-d) en que se puede entrar al grupo, o null si aun no tiene calendario. */
+    public function cierreInscripcion(int $grupoId): ?string
+    {
+        $statement = Database::connection()->prepare(
+            "SELECT MIN(fecha) FROM sesiones_tutoria WHERE id_grupo = :id AND estado <> 'cancelada'"
+        );
+        $statement->execute(['id' => $grupoId]);
+        $primera = $statement->fetchColumn();
+
+        return $primera ? date('Y-m-d', strtotime($primera . ' +' . self::DIAS_INSCRIPCION_TARDIA . ' days')) : null;
+    }
+
+    /**
      * Regla institucional de frecuencia (db/033): la decide la demanda al crear el
      * grupo, no el tutor. Con menos de UMBRAL_GRUPO_NORMAL estudiantes el grupo es
      * reducido (LMV por defecto; la coordinacion puede pasarlo a MJS mientras esta
@@ -139,7 +166,7 @@ final class Grupo
     {
         return (int) Database::connection()->query(
             "SELECT COUNT(*) FROM grupos_tutoria g INNER JOIN periodos p ON p.id_periodo = g.id_periodo
-             WHERE p.estado = 'activa' AND " . self::SQL_UBICACION_PENDIENTE
+             WHERE p.id_periodo = " . Periodo::sqlIdActivo() . ' AND ' . self::SQL_UBICACION_PENDIENTE
         )->fetchColumn();
     }
 
@@ -195,9 +222,13 @@ final class Grupo
         return $cambiados;
     }
 
-    /** Candidatos: grupos de una materia con cupo libre, ordenados para llenar los mas ocupados primero. */
+    /**
+     * Candidatos: grupos de una materia con cupo libre y la inscripcion abierta
+     * (DIAS_INSCRIPCION_TARDIA), ordenados para llenar los mas ocupados primero.
+     */
     public function candidatesForMatter(int $periodoId, int $matterId): array
     {
+        $abierta = self::sqlInscripcionAbierta('g');
         $statement = Database::connection()->prepare(
             "SELECT g.id_grupo, g.id_tutor, g.id_espacio, g.dia_semana, g.hora_inicio, g.hora_fin, g.cupo_max, g.cupo_ocupado, g.estado,
                     GROUP_CONCAT(gd.dia_semana) AS dias
@@ -206,6 +237,7 @@ final class Grupo
              WHERE g.id_periodo = :id_periodo AND g.id_materia = :id_materia
                AND g.estado IN ('por_aprobar','formacion','confirmado','en_curso')
                AND g.cupo_ocupado < g.cupo_max
+               AND {$abierta}
              GROUP BY g.id_grupo
              ORDER BY g.cupo_ocupado DESC, g.id_grupo ASC"
         );
@@ -475,7 +507,7 @@ final class Grupo
     {
         return (int) Database::connection()->query(
             "SELECT COUNT(*) FROM grupos_tutoria g INNER JOIN periodos p ON p.id_periodo = g.id_periodo
-             WHERE g.estado = 'por_aprobar' AND p.estado = 'activa'"
+             WHERE g.estado = 'por_aprobar' AND p.id_periodo = " . Periodo::sqlIdActivo()
         )->fetchColumn();
     }
 

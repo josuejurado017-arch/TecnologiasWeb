@@ -90,6 +90,7 @@ $camposUbicacion = static function (bool $conAyudaAula) use ($grupo, $modalidadF
             <div><dt>Turno</dt><dd><?= e($turno) ?> · <?= e($hora($grupo['hora_inicio'])) ?>–<?= e($hora($grupo['hora_fin'])) ?></dd></div>
             <div><dt>Frecuencia</dt><dd><?= e(GruposController::etiquetaDias($diasGrupo)) ?><small><?= e(implode(', ', $diasGrupo)) ?></small></dd></div>
             <div><dt>Estudiantes</dt><dd><?= (int) $grupo['cupo_ocupado'] ?> de <?= (int) $grupo['cupo_max'] ?> cupos</dd></div>
+            <div><dt>Inscripción</dt><dd><?php if ($cierreInscripcion === null): ?>Abierta<small>Aún sin calendario</small><?php elseif ($cierreInscripcion >= date('Y-m-d')): ?>Abierta hasta el <?= e(date('d/m/Y', strtotime($cierreInscripcion))) ?><small><?= Grupo::DIAS_INSCRIPCION_TARDIA ?> días después de la primera sesión</small><?php else: ?>Cerrada desde el <?= e(date('d/m/Y', strtotime($cierreInscripcion . ' +1 day'))) ?><small>Pasaron <?= Grupo::DIAS_INSCRIPCION_TARDIA ?> días de la primera sesión</small><?php endif; ?></dd></div>
             <div><dt>Espacio</dt><dd><?= e($grupo['espacio']) ?><small>Calculado según la modalidad<?= $presencial ? '' : ' y el enlace' ?></small></dd></div>
         </dl>
     </section>
@@ -118,6 +119,66 @@ $camposUbicacion = static function (bool $conAyudaAula) use ($grupo, $modalidadF
                     </form>
                     <p class="form-hint">Solo aparecen tutores con esta materia aprobada en el turno <?= e($turno) ?>, libres en ese turno y bajo su tope de grupos. Se conservan el horario, las sesiones y la asistencia.</p>
                 </details>
+            <?php endif; ?>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($mostrarDivision): ?>
+        <section class="card" id="dividir">
+            <h2>Dividir grupo</h2>
+            <?php if ($divisionPendiente !== null): ?>
+                <p>⏳ Propuesta enviada a <strong><?= e($divisionPendiente['tutor']) ?></strong> el <?= e(date('d/m/Y H:i', strtotime((string) $divisionPendiente['fecha_solicitud']))) ?>. El grupo se divide cuando el tutor la acepte.</p>
+                <form method="post" class="inline-form" onsubmit="return confirm('¿Retirar la propuesta de división?');">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="accion" value="cancelar_division">
+                    <input type="hidden" name="id_division" value="<?= (int) $divisionPendiente['id_division'] ?>">
+                    <button type="submit" class="secondary">Retirar propuesta</button>
+                </form>
+            <?php elseif ($bloqueoDivision !== null): ?>
+                <p class="panel-note"><?= e($bloqueoDivision) ?></p>
+            <?php elseif (!$tutoresDivision): ?>
+                <p class="panel-note">Ningún tutor puede tomar la mitad: hace falta un tutor habilitado, libre en el turno <?= e($turno) ?>, sin otra materia en ese turno y bajo su tope de materias y grupos.</p>
+            <?php else: ?>
+                <p class="panel-note">El grupo está lleno. Divídelo en dos grupos parejos con otro tutor: mismo turno y mismos días, así que a nadie le cambia el horario. Pasan los últimos en inscribirse y entran quienes esperan la materia.</p>
+                <form method="get" action="<?= e(app_url('grupos/ubicacion.php')) ?>#dividir" class="inline-form">
+                    <input type="hidden" name="grupo" value="<?= (int) $grupo['id_grupo'] ?>">
+                    <label for="dividir_tutor">Segundo tutor</label>
+                    <select id="dividir_tutor" name="dividir_tutor" required>
+                        <option value="">Elige un tutor…</option>
+                        <?php foreach ($tutoresDivision as $t): ?>
+                            <option value="<?= (int) $t['id_tutor'] ?>" <?= (int) $t['id_tutor'] === $tutorPrevia ? 'selected' : '' ?>><?= e($t['tutor']) ?><?= $t['especialidad'] ? ' · ' . e($t['especialidad']) : '' ?> (<?= (int) $t['grupos_periodo'] ?> grupo<?= (int) $t['grupos_periodo'] === 1 ? '' : 's' ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="secondary">Ver vista previa</button>
+                </form>
+                <?php if ($planDivision !== null): ?>
+                    <h3>Vista previa</h3>
+                    <?php if ($planDivision['error'] !== null): ?>
+                        <p class="alert" role="alert"><?= e($planDivision['error']) ?></p>
+                    <?php else: ?>
+                        <div class="revision-datos">
+                            <div>
+                                <h4>Grupo actual · <?= e($grupo['tutor']) ?> (<?= count($planDivision['quedan']) ?>)</h4>
+                                <ul class="plain-list"><?php foreach ($planDivision['quedan'] as $est): ?><li><?= e($est['estudiante']) ?></li><?php endforeach; ?></ul>
+                            </div>
+                            <div>
+                                <h4>Grupo nuevo · <?= e($tutorPreviaNombre) ?> (<?= count($planDivision['pasan']) + count($planDivision['desde_espera']) ?>)</h4>
+                                <ul class="plain-list">
+                                    <?php foreach ($planDivision['pasan'] as $est): ?><li><?= e($est['estudiante']) ?> <small>· se traslada</small></li><?php endforeach; ?>
+                                    <?php foreach ($planDivision['desde_espera'] as $est): ?><li><?= interes_badge() ?> <?= e($est['estudiante']) ?> <small>· estaba en espera</small></li><?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                        <?php if ($planDivision['siguen_esperando'] > 0): ?><p class="form-hint"><?= (int) $planDivision['siguen_esperando'] ?> estudiante(s) seguirán en espera: los dos grupos quedan llenos.</p><?php endif; ?>
+                        <p class="form-hint">El reparto se recalcula cuando el tutor acepte, por si alguien se inscribe o se retira mientras tanto.</p>
+                        <form method="post" onsubmit="return confirm(<?= e(json_encode('¿Enviar la propuesta de división a ' . $tutorPreviaNombre . '?', JSON_UNESCAPED_UNICODE)) ?>);">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <input type="hidden" name="accion" value="dividir">
+                            <input type="hidden" name="id_tutor_division" value="<?= (int) $tutorPrevia ?>">
+                            <button type="submit">Trasladar y enviar propuesta al tutor</button>
+                        </form>
+                    <?php endif; ?>
+                <?php endif; ?>
             <?php endif; ?>
         </section>
     <?php endif; ?>

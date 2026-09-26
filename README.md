@@ -162,6 +162,25 @@ Los cambios de estructura de la base se aplican ejecutando el script SQL de migr
 
 Para la regla de ofertas por campaña, aplicar `db/040_ofertas_por_periodo.sql` **una sola vez, después de 039**, sobre una copia de seguridad de la base. La migración asocia las ofertas anteriores al período activo y marca como rechazadas las aprobaciones sin grupo que excedían dos materias o repetían materia/turno; conserva los grupos y el historial. Al cerrar el período, las ofertas ya no aparecen en la siguiente campaña: cada tutor debe renovarlas.
 
+Después de 040 aplicar `db/041_integridad_historial.sql` (idempotente) y luego reprocesar la demanda con `php db/herramientas/reprocesar_demanda.php --confirmar`, para que los estudiantes que esperaban una oferta rechazada por 040 vean su estado real. La 041 hace que el historial académico no se borre en cascada: estudiantes y tutores ya no se eliminan, se desactivan. No se puede desactivar a un tutor con grupos vigentes ni a un estudiante inscrito en uno, ni dejar el sistema sin administrador. Una cuenta desactivada pierde su sesión en la siguiente petición.
+
+Luego aplicar `db/042_division_grupos.sql` (idempotente). Con un grupo lleno, la coordinación puede **dividirlo** desde *Revisar grupo → Dividir grupo*: elige un segundo tutor, ve la vista previa (se quedan los primeros en inscribirse, pasan los últimos y entran quienes esperaban la materia, hasta dejar dos grupos parejos) y envía la propuesta. El grupo nuevo se crea recién cuando el tutor la acepta en *Mis grupos*, con el mismo turno y los mismos días; su aula o enlace los define la coordinación. No se divide un grupo con asistencia registrada.
+
+Luego aplicar `db/043_tipos_tutoria.sql` (idempotente). Agrega **tipos de tutoría** con nombre libre (*Períodos → Tipos de tutoría*): Pregrado, Postgrado, Nivelación... Cada período es de un tipo, y puede haber **un período activo por tipo**, así que tutorías de distinto tipo corren en paralelo. La duración máxima de un período la fija su tipo (vacío = sin tope); los períodos existentes pasan a *Pregrado*, que conserva el tope de 42 días. El selector **Tipo de tutoría** de la barra superior define qué período activo muestra todo el portal (grupos, ofertas, estudiantes, contadores, resumen). El motor de asignación no depende de ese selector: trabaja siempre sobre el período de cada solicitud o grupo.
+
+**Inscripción tardía:** como en las materias de la UPDS, a un grupo se puede entrar hasta 4 días después de su primera sesión (`Grupo::DIAS_INSCRIPCION_TARDIA`). Después el motor ya no inscribe en ese grupo y la coordinación tampoco puede inscribir a mano.
+
+### Pruebas de escenarios
+
+`tests/escenarios.php` ejecuta los flujos reales (cuentas, ofertas por período, motor de asignación y ciclo de períodos) y verifica el resultado. Modifica datos, así que solo corre sobre una copia cuyo nombre termine en `_audit`:
+
+```bash
+mysqldump -u root --routines testdb > copia.sql
+mysql -u root -e "CREATE DATABASE testdb_audit"
+mysql -u root testdb_audit < copia.sql
+DB_NAME=testdb_audit php tests/escenarios.php
+```
+
 ## Docker (recomendado para el servidor)
 
 `compose.yaml` levanta la aplicacion (Apache + PHP 8.2, imagen construida desde `Dockerfile`) y MySQL 8.4 con un volumen persistente. Reemplaza al Apache y MySQL instalados en el host; BIND9 sigue en el host resolviendo `tutorias.local` hacia la IP del servidor.

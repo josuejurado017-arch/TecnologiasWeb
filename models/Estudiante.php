@@ -63,7 +63,7 @@ final class Estudiante
                     SELECT i.id_estudiante, MIN(m.nombre_materia) AS materia
                     FROM inscripciones i
                     INNER JOIN grupos_tutoria g ON g.id_grupo = i.id_grupo
-                    INNER JOIN periodos p ON p.id_periodo = g.id_periodo AND p.estado = 'activa'
+                    INNER JOIN periodos p ON p.id_periodo = g.id_periodo AND p.id_periodo = " . Periodo::sqlIdActivo() . "
                     INNER JOIN materias m ON m.id_materia = g.id_materia
                     WHERE i.estado = 'inscrito' AND g.estado <> 'cancelado'
                     GROUP BY i.id_estudiante
@@ -71,7 +71,7 @@ final class Estudiante
                 LEFT JOIN (
                     SELECT d.id_estudiante, MIN(m.nombre_materia) AS materia
                     FROM demanda_tutoria d
-                    INNER JOIN periodos p ON p.id_periodo = d.id_periodo AND p.estado = 'activa'
+                    INNER JOIN periodos p ON p.id_periodo = d.id_periodo AND p.id_periodo = " . Periodo::sqlIdActivo() . "
                     INNER JOIN materias m ON m.id_materia = d.id_materia
                     WHERE d.estado = 'pendiente'
                     GROUP BY d.id_estudiante
@@ -210,13 +210,5 @@ final class Estudiante
         $statement->execute(['registro' => $registro, 'id' => $exceptStudentId]);
 
         return (bool) $statement->fetchColumn();
-    }
-
-    public function delete(int $id): void
-    {
-        $statement = Database::connection()->prepare(
-            'DELETE FROM estudiantes WHERE id_estudiante = :id_estudiante'
-        );
-        $statement->execute(['id_estudiante' => $id]);
     }
 }

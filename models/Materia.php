@@ -99,7 +99,7 @@ final class Materia
              FROM tutor_materia_config c
              INNER JOIN materias m ON m.id_materia = c.id_materia
              INNER JOIN tutores t ON t.id_tutor = c.id_tutor
-              WHERE c.id_materia = :id AND c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1) AND NOT " . TutorMateriaConfig::sqlModalidadCompatible('c', 'm')
+              WHERE c.id_materia = :id AND c.id_periodo = " . Periodo::sqlIdActivo() . " AND NOT " . TutorMateriaConfig::sqlModalidadCompatible('c', 'm')
         );
         $statement->execute(['id' => $id]);
 

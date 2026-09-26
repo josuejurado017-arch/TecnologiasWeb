@@ -7,7 +7,7 @@ $estadoOferta = [
     'propuesta' => 'propuesta enviada, esperando respuesta',
     'rechazado' => 'la rechazó antes',
 ];
-$maxGrupos = min(2, (int) ($periodo['max_grupos_tutor'] ?? 2));
+$maxGrupos = max(1, (int) ($periodo['max_grupos_tutor'] ?? TutorMateriaConfig::MAX_MATERIAS));
 $turnosElegidos = is_array($input['turnos'] ?? null) ? $input['turnos'] : [];
 ?>
 
@@ -41,9 +41,9 @@ $turnosElegidos = is_array($input['turnos'] ?? null) ? $input['turnos'] : [];
                 <?php foreach ($candidatos as $c): ?>
                     <?php
                      $bloqueado = in_array($c['estado_oferta'], ['aprobado', 'pendiente', 'propuesta'], true)
-                         || (int) $c['materias_periodo'] >= TutorMateriaConfig::MAX_MATERIAS
+                         || (int) $c['materias_periodo'] >= $maxGrupos
                          || (int) $c['grupos_periodo'] >= $maxGrupos;
-                     $detalle = [(int) $c['materias_periodo'] . '/2 materias', (int) $c['grupos_periodo'] . '/' . $maxGrupos . ' grupos'];
+                     $detalle = [(int) $c['materias_periodo'] . '/' . $maxGrupos . ' materias', (int) $c['grupos_periodo'] . '/' . $maxGrupos . ' grupos'];
                     if ($c['turnos_otras']) {
                         $detalle[] = 'ya ocupa: ' . implode(', ', array_map(static fn (string $t): string => TutorMateriaConfig::TURNOS[$t]['label'] ?? $t, $c['turnos_otras']));
                     }

@@ -171,6 +171,8 @@ final class OfertaMateria
     /** Grupos del periodo con cupo libre, indexados por materia. Incluye el tutor porque el grupo ya existe. */
     private function gruposConCupo(int $periodoId): array
     {
+        // Solo grupos a los que todavia se puede entrar (Grupo::DIAS_INSCRIPCION_TARDIA).
+        $abierta = Grupo::sqlInscripcionAbierta('g');
         $statement = Database::connection()->prepare(
             "SELECT g.id_materia, g.id_grupo, g.id_tutor, g.estado, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad,
                     g.cupo_max, g.cupo_ocupado, g.fecha_aprobacion,
@@ -183,6 +185,7 @@ final class OfertaMateria
              WHERE g.id_periodo = :id_periodo
                AND g.estado IN ('por_aprobar','formacion','confirmado','en_curso')
                AND g.cupo_ocupado < g.cupo_max
+               AND {$abierta}
              ORDER BY g.id_materia, FIELD(g.estado,'confirmado','en_curso','formacion','por_aprobar'),
                       FIELD(g.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'), g.hora_inicio"
         );
@@ -280,7 +283,7 @@ final class OfertaMateria
              FROM tutor_materia_config c
              INNER JOIN materias m ON m.id_materia = c.id_materia
               LEFT JOIN tutor_materia_turno tt ON tt.id_tutor = c.id_tutor AND tt.id_materia = c.id_materia AND tt.id_periodo = c.id_periodo
-              WHERE c.estado = 'aprobado' AND c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1) AND c.id_tutor IN ({$in})
+              WHERE c.estado = 'aprobado' AND c.id_periodo = " . Periodo::sqlIdActivo() . " AND c.id_tutor IN ({$in})
              GROUP BY c.id_tutor, m.nombre_materia, c.modalidad
              ORDER BY m.nombre_materia"
         );
@@ -307,7 +310,7 @@ final class OfertaMateria
         $pdo = Database::connection();
         $result = [];
 
-        foreach ($pdo->query("SELECT id_materia, modalidad FROM tutor_materia_config WHERE estado = 'aprobado' AND id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)")->fetchAll() as $row) {
+        foreach ($pdo->query("SELECT id_materia, modalidad FROM tutor_materia_config WHERE estado = 'aprobado' AND id_periodo = " . Periodo::sqlIdActivo() . "")->fetchAll() as $row) {
             $id = (int) $row['id_materia'];
             $result[$id] ??= ['turnos' => [], 'modalidades' => []];
             $result[$id]['modalidades'][$row['modalidad']] = true;
@@ -316,7 +319,7 @@ final class OfertaMateria
         $turnos = $pdo->query(
             "SELECT DISTINCT tt.id_materia, tt.turno FROM tutor_materia_turno tt
               INNER JOIN tutor_materia_config c ON c.id_tutor = tt.id_tutor AND c.id_materia = tt.id_materia AND c.id_periodo = tt.id_periodo AND c.estado = 'aprobado'
-              WHERE c.id_periodo = (SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)"
+              WHERE c.id_periodo = " . Periodo::sqlIdActivo() . ""
         )->fetchAll();
         foreach ($turnos as $row) {
             $id = (int) $row['id_materia'];

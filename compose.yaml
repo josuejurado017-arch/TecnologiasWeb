@@ -85,6 +85,13 @@ services:
       # tutor de un grupo e inscribe o retira estudiantes a mano.
       - ./db/039_gestion_manual_grupos.sql:/docker-entrypoint-initdb.d/039_gestion_manual_grupos.sql:ro
       - ./db/040_ofertas_por_periodo.sql:/docker-entrypoint-initdb.d/040_ofertas_por_periodo.sql:ro
+      # 041: el historial academico no se borra en cascada (FK RESTRICT) y la
+      # demanda abierta de periodos cerrados pasa a vencida.
+      - ./db/041_integridad_historial.sql:/docker-entrypoint-initdb.d/041_integridad_historial.sql:ro
+      # 042: dividir un grupo lleno en dos grupos parejos (el tutor acepta).
+      - ./db/042_division_grupos.sql:/docker-entrypoint-initdb.d/042_division_grupos.sql:ro
+      # 043: tipos de tutoria (nombre libre); un periodo activo por tipo, en paralelo.
+      - ./db/043_tipos_tutoria.sql:/docker-entrypoint-initdb.d/043_tipos_tutoria.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s

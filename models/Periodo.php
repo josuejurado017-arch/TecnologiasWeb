@@ -6,13 +6,17 @@ declare(strict_types=1);
  * Periodos de tutoria (db/031). Ciclo de vida BORRADOR -> ACTIVA -> CERRADA, sin
  * vuelta atras: un periodo cerrado es historial (solo lectura y observaciones).
  * Las transiciones las orquesta PeriodosController; aqui solo hay SQL.
+ *
+ * Cada periodo es de un tipo de tutoria (db/043) y hay como maximo un periodo
+ * activo por tipo. "El periodo activo" es siempre el del tipo con el que trabaja
+ * el portal (TipoTutoria::actual).
  */
 final class Periodo
 {
     /** Dias que el estudiante conserva para evaluar despues del cierre. */
     public const DIAS_GRACIA_EVALUACION = 7;
 
-    private const COLUMNAS = 'p.id_periodo, p.nombre, p.fecha_inicio, p.fecha_fin, p.cupo_min_grupo, p.cupo_max_default,
+    private const COLUMNAS = 'p.id_periodo, p.nombre, p.id_tipo_tutoria, tt.nombre AS tipo_nombre, p.fecha_inicio, p.fecha_fin, p.cupo_min_grupo, p.cupo_max_default,
         p.max_grupos_tutor, p.modalidad_ambas, p.estado, p.fecha_activacion, p.fecha_cierre, p.evaluaciones_hasta, p.resumen_cierre, p.fecha_registro';
 
     public function all(): array
@@ -21,8 +25,9 @@ final class Periodo
             'SELECT ' . self::COLUMNAS . ",
                     CONCAT(uc.nombre, ' ', uc.apellido) AS cerrado_por
              FROM periodos p
+             INNER JOIN tipos_tutoria tt ON tt.id_tipo_tutoria = p.id_tipo_tutoria
              LEFT JOIN usuarios uc ON uc.id_usuario = p.id_usuario_cierre
-             ORDER BY FIELD(p.estado, 'activa', 'borrador', 'cerrada'), p.fecha_inicio DESC, p.nombre"
+             ORDER BY FIELD(p.estado, 'activa', 'borrador', 'cerrada'), tt.nombre, p.fecha_inicio DESC, p.nombre"
         )->fetchAll();
     }
 
@@ -33,6 +38,7 @@ final class Periodo
                     CONCAT(ua.nombre, ' ', ua.apellido) AS activado_por,
                     CONCAT(uc.nombre, ' ', uc.apellido) AS cerrado_por
              FROM periodos p
+             INNER JOIN tipos_tutoria tt ON tt.id_tipo_tutoria = p.id_tipo_tutoria
              LEFT JOIN usuarios ua ON ua.id_usuario = p.id_usuario_activacion
              LEFT JOIN usuarios uc ON uc.id_usuario = p.id_usuario_cierre
              WHERE p.id_periodo = :id_periodo LIMIT 1"
@@ -43,13 +49,38 @@ final class Periodo
         return $periodo ?: null;
     }
 
-    public function activa(): ?array
+    /** Periodo activo del tipo indicado o, por defecto, del tipo con el que trabaja el portal. */
+    public function activa(?int $tipoId = null): ?array
     {
-        $periodo = Database::connection()
-            ->query('SELECT ' . self::COLUMNAS . " FROM periodos p WHERE p.estado = 'activa' ORDER BY p.fecha_inicio DESC LIMIT 1")
-            ->fetch();
+        $statement = Database::connection()->prepare(
+            'SELECT ' . self::COLUMNAS . " FROM periodos p
+             INNER JOIN tipos_tutoria tt ON tt.id_tipo_tutoria = p.id_tipo_tutoria
+             WHERE p.estado = 'activa' AND p.id_tipo_tutoria = :tipo ORDER BY p.fecha_inicio DESC LIMIT 1"
+        );
+        $statement->execute(['tipo' => $tipoId ?? TipoTutoria::actual()]);
+        $periodo = $statement->fetch();
 
         return $periodo ?: null;
+    }
+
+    /** Todos los periodos activos (uno por tipo). Lo usa el motor, que no depende del tipo elegido. */
+    public function activas(): array
+    {
+        return Database::connection()->query(
+            'SELECT ' . self::COLUMNAS . " FROM periodos p
+             INNER JOIN tipos_tutoria tt ON tt.id_tipo_tutoria = p.id_tipo_tutoria
+             WHERE p.estado = 'activa' ORDER BY tt.nombre"
+        )->fetchAll();
+    }
+
+    /**
+     * Subconsulta SQL con el id del periodo activo del tipo actual (NULL si no hay).
+     * Reemplaza a "(SELECT id_periodo FROM periodos WHERE estado = 'activa' LIMIT 1)",
+     * que con periodos en paralelo devolveria uno cualquiera. El id es un entero.
+     */
+    public static function sqlIdActivo(): string
+    {
+        return "(SELECT id_periodo FROM periodos WHERE estado = 'activa' AND id_tipo_tutoria = " . TipoTutoria::actual() . ' LIMIT 1)';
     }
 
     /**
@@ -60,6 +91,7 @@ final class Periodo
     {
         return Database::connection()->query(
             'SELECT ' . self::COLUMNAS . " FROM periodos p
+             INNER JOIN tipos_tutoria tt ON tt.id_tipo_tutoria = p.id_tipo_tutoria
              WHERE p.estado = 'activa' OR (p.estado = 'cerrada' AND p.evaluaciones_hasta >= CURRENT_DATE)
              ORDER BY FIELD(p.estado, 'activa', 'cerrada'), p.fecha_inicio DESC"
         )->fetchAll();
@@ -85,9 +117,10 @@ final class Periodo
     public function create(array $data): void
     {
         Database::connection()->prepare(
-            "INSERT INTO periodos (nombre, fecha_inicio, fecha_fin, cupo_min_grupo, cupo_max_default, max_grupos_tutor, modalidad_ambas, estado)
-             VALUES (:nombre, :fecha_inicio, :fecha_fin, :cupo_min_grupo, :cupo_max_default, :max_grupos_tutor, :modalidad_ambas, 'borrador')"
+            "INSERT INTO periodos (nombre, id_tipo_tutoria, fecha_inicio, fecha_fin, cupo_min_grupo, cupo_max_default, max_grupos_tutor, modalidad_ambas, estado)
+             VALUES (:nombre, :id_tipo_tutoria, :fecha_inicio, :fecha_fin, :cupo_min_grupo, :cupo_max_default, :max_grupos_tutor, :modalidad_ambas, 'borrador')"
         )->execute([
+            'id_tipo_tutoria' => $data['id_tipo_tutoria'],
             'max_grupos_tutor' => $data['max_grupos_tutor'],
             'nombre' => $data['nombre'],
             'fecha_inicio' => $data['fecha_inicio'],
@@ -102,13 +135,14 @@ final class Periodo
     public function update(int $id, array $data): void
     {
         Database::connection()->prepare(
-            "UPDATE periodos SET nombre = :nombre, fecha_inicio = :fecha_inicio, fecha_fin = :fecha_fin,
+            "UPDATE periodos SET nombre = :nombre, id_tipo_tutoria = :id_tipo_tutoria, fecha_inicio = :fecha_inicio, fecha_fin = :fecha_fin,
                 cupo_min_grupo = :cupo_min_grupo, cupo_max_default = :cupo_max_default,
                 max_grupos_tutor = :max_grupos_tutor, modalidad_ambas = :modalidad_ambas
              WHERE id_periodo = :id_periodo AND estado <> 'cerrada'"
         )->execute([
             'max_grupos_tutor' => $data['max_grupos_tutor'],
             'nombre' => $data['nombre'],
+            'id_tipo_tutoria' => $data['id_tipo_tutoria'],
             'fecha_inicio' => $data['fecha_inicio'],
             'fecha_fin' => $data['fecha_fin'],
             'cupo_min_grupo' => $data['cupo_min_grupo'],
@@ -128,13 +162,13 @@ final class Periodo
         return $estado === false ? null : (string) $estado;
     }
 
-    /** Otro periodo activo (bloqueado en la transaccion en curso), o null. */
-    public function lockOtroActivo(int $id): ?array
+    /** Otro periodo activo del mismo tipo (bloqueado en la transaccion en curso), o null. */
+    public function lockOtroActivo(int $id, int $tipoId): ?array
     {
         $statement = Database::connection()->prepare(
-            "SELECT id_periodo, nombre FROM periodos WHERE estado = 'activa' AND id_periodo <> :id FOR UPDATE"
+            "SELECT id_periodo, nombre FROM periodos WHERE estado = 'activa' AND id_tipo_tutoria = :tipo AND id_periodo <> :id FOR UPDATE"
         );
-        $statement->execute(['id' => $id]);
+        $statement->execute(['id' => $id, 'tipo' => $tipoId]);
         $otro = $statement->fetch();
 
         return $otro ?: null;

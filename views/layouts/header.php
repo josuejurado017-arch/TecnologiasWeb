@@ -8,7 +8,17 @@ $role = $user['nombre_rol'] ?? '';
 // docente del tutor. Consultas baratas; si fallan, el menu se muestra sin ellos.
 $reviewCounts = ['tutores' => 0, 'grupos' => 0, 'ofertas' => 0];
 $tutorHabilitacion = null;
+// Tipo de tutoria con el que trabaja el portal (db/043): todo lo que muestra "el
+// periodo activo" es el de este tipo. Se cambia con el selector de la barra superior.
+$tiposSeleccionables = [];
+$tipoActualId = 0;
 if ($isAuthenticated) {
+    try {
+        $tiposSeleccionables = TipoTutoria::seleccionables();
+        $tipoActualId = TipoTutoria::actual();
+    } catch (Throwable $exception) {
+        error_log('Selector de tipo de tutoria: ' . $exception->getMessage());
+    }
     try {
         if ($role === 'administrador') {
             $reviewCounts['tutores'] = (new Tutor())->countPendientes();
@@ -59,6 +69,10 @@ if ($isAuthenticated) {
                     <a class="nav-link <?= $activePage === 'periodos' ? 'is-active' : '' ?>" href="<?= e(app_url('periodos/')) ?>">
                         <span class="nav-icon">CP</span>
                         <span>Períodos de tutoría</span>
+                    </a>
+                    <a class="nav-link <?= $activePage === 'tipos-tutoria' ? 'is-active' : '' ?>" href="<?= e(app_url('tipos-tutoria/')) ?>">
+                        <span class="nav-icon">TT</span>
+                        <span>Tipos de tutoría</span>
                     </a>
                     <span class="nav-label">Catálogo académico</span>
                     <a class="nav-link <?= $activePage === 'carreras' ? 'is-active' : '' ?>" href="<?= e(app_url('carreras/')) ?>">
@@ -173,6 +187,19 @@ if ($isAuthenticated) {
                     <span class="eyebrow">Sistema de apoyo académico</span>
                     <strong><?= e($title) ?></strong>
                 </div>
+                <?php if ($tiposSeleccionables): ?>
+                    <form class="tipo-selector" method="post" action="<?= e(app_url('tipos-tutoria/seleccionar.php')) ?>">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="redirect" value="<?= e((string) ($_SERVER['REQUEST_URI'] ?? '')) ?>">
+                        <label for="tipo-tutoria-actual">Tipo de tutoría</label>
+                        <select id="tipo-tutoria-actual" name="id_tipo_tutoria" onchange="this.form.submit()">
+                            <?php foreach ($tiposSeleccionables as $tipoOpcion): ?>
+                                <option value="<?= (int) $tipoOpcion['id_tipo_tutoria'] ?>" <?= (int) $tipoOpcion['id_tipo_tutoria'] === $tipoActualId ? 'selected' : '' ?>><?= e($tipoOpcion['nombre']) ?> · <?= $tipoOpcion['periodo_activo'] !== null ? e($tipoOpcion['periodo_activo']) : 'sin período activo' ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <noscript><button class="topbar-action" type="submit">Cambiar</button></noscript>
+                    </form>
+                <?php endif; ?>
                 <div class="topbar-actions" aria-label="Acciones del portal">
                     <button class="topbar-action" type="button" title="Idioma">Aa <span>ES</span></button>
                     <button class="topbar-action highlight" type="button" title="Cambiar tema" aria-label="Cambiar tema" data-theme-toggle>
