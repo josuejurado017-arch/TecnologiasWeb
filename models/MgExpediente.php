@@ -265,7 +265,7 @@ final class MgExpediente
     }
 
     // ------------------------------------------------------------------
-    // Panel del Coordinador (resumen; el dashboard completo es HU-039, P2)
+    // Panel del Coordinador (HU-039; ver tambien cargaPorTutor y MgAlerta)
     // ------------------------------------------------------------------
 
     public function panel(int $diasDefensas, int $cargaRecomendada, int $diasTribunal): array
@@ -317,6 +317,17 @@ final class MgExpediente
             'sobrecarga' => $sobrecarga->fetchAll(),
             'documentos_mes' => $cartasMes,
         ];
+    }
+
+    /** Tesistas vigentes (expediente activo) por tutor, de mayor a menor (HU-039). */
+    public function cargaPorTutor(int $limite = 15): array
+    {
+        return Database::connection()->query(
+            "SELECT t.id_tutor, CONCAT(u.nombre, ' ', u.apellido) AS docente, COUNT(*) AS carga
+             FROM asignaciones_tutor_mg a INNER JOIN expedientes_mg e ON e.id_expediente = a.id_expediente AND e.estado = 'activo'
+             INNER JOIN tutores t ON t.id_tutor = a.id_tutor INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             WHERE a.estado = 'vigente' GROUP BY t.id_tutor, u.nombre, u.apellido ORDER BY carga DESC, docente LIMIT " . max(1, min($limite, 50))
+        )->fetchAll();
     }
 
     // ------------------------------------------------------------------

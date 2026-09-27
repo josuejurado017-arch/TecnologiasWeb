@@ -13,6 +13,8 @@ $estudianteId = $modelo->estudianteIdPorUsuario((int) Auth::user()['id_usuario']
 $expedientes = $estudianteId ? $modelo->listar(['id_estudiante' => $estudianteId]) : [];
 $defensas = new MgDefensa();
 $tribunales = new MgTribunal();
+$reunionesModelo = new MgReunion();
+$informesModelo = new MgInforme();
 
 require dirname(__DIR__, 2) . '/views/layouts/header.php';
 ?>
@@ -45,6 +47,18 @@ require dirname(__DIR__, 2) . '/views/layouts/header.php';
                 <?php endforeach; ?>
             </ul>
             <?php if (count($notas) === 2): ?><p class="panel-note">Promedio simple MG1/MG2: <?= e(number_format(array_sum($notas) / 2, 2)) ?> (provisional).</p><?php endif; ?>
+            <?php $resumen = $reunionesModelo->resumen($id); ?>
+            <?php $informes = $informesModelo->porExpediente($item); ?>
+            <h3 class="mg-subtitulo">Seguimiento</h3>
+            <p>Reuniones registradas por tu tutor: <strong><?= (int) ($resumen['total'] ?? 0) ?></strong> · última <?= e(mg_fecha_corta($resumen['ultima'] ?? null)) ?> · inasistencias tuyas: <?= (int) ($resumen['faltas_estudiante'] ?? 0) ?></p>
+            <?php if ($informes): ?>
+                <ul class="mg-lista">
+                    <?php foreach ($informes as $hito): ?>
+                        <li><?= e($hito['nombre']) ?> · vence <?= e(mg_fecha_corta($hito['fecha_limite'])) ?> · <?= MgInforme::badge($hito['estado_informe']) ?><?= $hito['id_informe'] ? ' · ' . (int) $hito['porcentaje_avance'] . '%' : '' ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <p><a href="<?= e(app_url('mg/seguimiento.php?expediente=' . $id)) ?>">Ver el detalle de reuniones e informes</a></p>
         </section>
     <?php endforeach; ?>
 </main>

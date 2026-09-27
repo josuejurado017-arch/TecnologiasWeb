@@ -31,6 +31,7 @@
                         <td><span class="badge badge-<?= (int) $cohorte['activa'] === 1 ? 'activa' : 'inactiva' ?>"><?= (int) $cohorte['activa'] === 1 ? 'Activa' : 'Inactiva' ?></span></td>
                         <td class="actions">
                             <a href="<?= e(app_url('mg/cohortes/calendario.php?id=' . (int) $cohorte['id_cohorte'])) ?>">Calendario</a>
+                            <a href="<?= e(app_url('mg/cohortes/linea.php?id=' . (int) $cohorte['id_cohorte'])) ?>">Línea de tiempo</a>
                             <?php if (Auth::canDo('mg.catalogo')): ?>
                                 <a href="<?= e(app_url('mg/cohortes/form.php?id=' . (int) $cohorte['id_cohorte'])) ?>">Editar</a>
                                 <form method="post">

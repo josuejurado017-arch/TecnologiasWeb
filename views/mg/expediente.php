@@ -192,8 +192,18 @@
     </div>
 
     <section class="card mg-seccion" id="seguimiento">
-        <div class="section-heading"><div><span class="eyebrow">MVP-2 (P2)</span><h2>Reuniones e informes de avance</h2></div></div>
-        <p class="panel-note">El registro de reuniones con asistencia de tutor y estudiante, los informes de avance por hito y las alertas llegan en el Sprint 5. Los hitos de informe ya se cargan en el <a href="<?= e(app_url('mg/cohortes/calendario.php?id=' . (int) $expediente['id_cohorte'])) ?>">calendario de la cohorte</a>.</p>
+        <div class="section-heading"><div><span class="eyebrow">HU-034/037/038</span><h2>Reuniones, informes y alertas</h2></div>
+            <a class="button small" href="<?= e(app_url('mg/seguimiento.php?expediente=' . (int) $expediente['id_expediente'])) ?>">Ver seguimiento</a></div>
+        <p>Reuniones: <strong><?= (int) ($resumenReuniones['total'] ?? 0) ?></strong> (<?= (int) ($resumenReuniones['validadas'] ?? 0) ?> validadas, <?= (int) ($resumenReuniones['por_validar'] ?? 0) ?> por validar, <?= (int) ($resumenReuniones['observadas'] ?? 0) ?> observadas) · última: <?= e(mg_fecha_corta($resumenReuniones['ultima'] ?? null)) ?>
+            · Inasistencias del estudiante: <?= (int) ($resumenReuniones['faltas_estudiante'] ?? 0) ?></p>
+        <?php if ($informesHitos): ?>
+            <p>Informes: <?php foreach ($informesHitos as $hito): ?><?= e($hito['nombre']) ?> <?= MgInforme::badge($hito['estado_informe']) ?><?= $hito['id_informe'] ? ' ' . (int) $hito['porcentaje_avance'] . '%' : '' ?> · <?php endforeach; ?></p>
+        <?php else: ?>
+            <p class="panel-note">La cohorte no tiene hitos de informe: se cargan en el <a href="<?= e(app_url('mg/cohortes/calendario.php?id=' . (int) $expediente['id_cohorte'])) ?>">calendario de la cohorte</a>.</p>
+        <?php endif; ?>
+        <?php if ($alertasExpediente): ?>
+            <ul class="mg-lista"><?php foreach ($alertasExpediente as $alerta): ?><li><?= MgAlerta::badge($alerta['severidad']) ?> <strong><?= e($alerta['titulo']) ?></strong> · <?= e($alerta['detalle']) ?></li><?php endforeach; ?></ul>
+        <?php endif; ?>
     </section>
 </main>
 

@@ -133,12 +133,18 @@ final class Auth
      * Fijos en codigo, como ROLE_MODULES: la matriz dinamica se elimino en db/017.
      * El administrador puede todo. 'mg.propio' = ver solo lo propio (tutor: sus
      * tesistas; estudiante: su expediente y sus notas publicadas).
+     * MVP-2: 'mg.validar' = validar, observar y corregir reuniones (HU-035);
+     * 'mg.informe' = registrar informes en nombre del tutor (HU-037);
+     * 'mg.alertas' = panel de alertas y marcarlas atendidas (HU-038).
+     * El tutor registra sus reuniones e informes con 'mg.propio' si es el tutor vigente.
      */
     private const MG_ACTIONS = [
         'coordinador_mg' => ['mg.ver', 'mg.parametros', 'mg.catalogo', 'mg.importar', 'mg.expediente', 'mg.tutor',
-            'mg.tribunal', 'mg.defensa', 'mg.calificacion', 'mg.documentos', 'mg.reportes', 'mg.bitacora'],
-        // [PENDIENTE] cargos exactos del auxiliar (pregunta 1 al Coordinador).
-        'auxiliar_mg' => ['mg.ver', 'mg.importar', 'mg.expediente', 'mg.tribunal', 'mg.defensa', 'mg.documentos', 'mg.reportes'],
+            'mg.tribunal', 'mg.defensa', 'mg.calificacion', 'mg.documentos', 'mg.reportes', 'mg.bitacora',
+            'mg.validar', 'mg.informe', 'mg.alertas'],
+        // [PENDIENTE] cargos exactos del auxiliar (pregunta 1 al Coordinador). No valida reuniones (C-03).
+        'auxiliar_mg' => ['mg.ver', 'mg.importar', 'mg.expediente', 'mg.tribunal', 'mg.defensa', 'mg.documentos', 'mg.reportes',
+            'mg.informe', 'mg.alertas'],
         'tutor' => ['mg.propio'],
         'estudiante' => ['mg.propio'],
     ];

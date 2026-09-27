@@ -23,6 +23,9 @@ Preparado 2026-09-25. Cada respuesta se registra con fecha y fuente; lo que camb
 9. ¿Quién justifica tardanzas y faltas a reuniones, y cómo?
 10. ¿Se puede obtener una exportación de SATS? ¿Formato y columnas? Hoy el CSV usa: `registro_universitario;modalidad;cohorte;titulo`.
 11. ¿Todo tribunal es un docente registrado en el sistema como tutor?
+12. (MVP-2) ¿Quién valida las reuniones: solo el Coordinador o también el auxiliar? Hoy solo el Coordinador valida, observa y corrige.
+13. (MVP-2) ¿Los umbrales de las alertas son razonables? Hoy son: 10 días sin reunión, 2 reuniones por semana en MG1, 7 días para registrar una reunión, citaciones a 3 días de la defensa y hitos "próximos" a 14 días.
+14. (MVP-2) ¿Se pueden registrar reuniones de hace más de 7 días, o eso lo hace solo la Coordinación como corrección?
 
 ## Documentos a solicitar
 

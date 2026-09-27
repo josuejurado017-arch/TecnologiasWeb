@@ -13,6 +13,7 @@ $filtros = [
     'id_modalidad' => (int) filter_input(INPUT_GET, 'id_modalidad', FILTER_VALIDATE_INT),
     'etapa' => is_string($_GET['etapa'] ?? null) ? $_GET['etapa'] : '',
     'estado' => is_string($_GET['estado'] ?? null) ? $_GET['estado'] : '',
+    'id_tutor' => (int) filter_input(INPUT_GET, 'id_tutor', FILTER_VALIDATE_INT),
 ];
 $expedientes = (new MgExpediente())->listar($filtros);
 $catalogo = new MgCatalogo();
@@ -54,6 +55,12 @@ require dirname(__DIR__, 3) . '/views/layouts/header.php';
             <label for="etapa">Etapa</label>
             <select id="etapa" name="etapa"><option value="">Todas</option><?php foreach (MgExpediente::ETAPAS as $valor => $label): ?><option value="<?= e($valor) ?>" <?= $filtros['etapa'] === $valor ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select>
         </div>
+        <?php if ($filtros['id_tutor']): ?>
+            <div>
+                <label for="id_tutor">Tutor</label>
+                <select id="id_tutor" name="id_tutor"><option value="">Todos</option><option value="<?= (int) $filtros['id_tutor'] ?>" selected><?= e((string) ($expedientes[0]['tutor'] ?? 'Tutor #' . $filtros['id_tutor'])) ?></option></select>
+            </div>
+        <?php endif; ?>
         <div>
             <label for="estado">Estado</label>
             <select id="estado" name="estado"><option value="">Todos</option><?php foreach (MgExpediente::ESTADOS as $valor => $label): ?><option value="<?= e($valor) ?>" <?= $filtros['estado'] === $valor ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select>

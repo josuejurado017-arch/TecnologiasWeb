@@ -17,6 +17,10 @@ $defensas = (new MgDefensa())->porExpediente($id);
 $notas = (new MgDefensa())->notasPorEtapa($id);
 $documentos = (new MgDocumento())->listar($id);
 $etapas = (new MgExpediente())->etapas($id);
+$reuniones = (new MgReunion())->porExpediente($id);
+$resumenReuniones = (new MgReunion())->resumen($id);
+$informes = (new MgInforme())->porExpediente($expediente);
+$alertas = (new MgAlerta())->delExpediente($id);
 ?><!doctype html>
 <html lang="es">
 <head>
@@ -74,7 +78,27 @@ $etapas = (new MgExpediente())->etapas($id);
                 <?php foreach ($documentos as $item): ?><tr><td><?= e($item['numero']) ?></td><td><?= e($item['plantilla']) ?></td><td><?= e($item['destinatario']) ?></td><td><?= e(mg_fecha_corta($item['fecha_generacion'])) ?></td></tr><?php endforeach; ?>
             </table>
         <?php endif; ?>
-        <p class="doc-nota">Reuniones, informes de avance y alertas: disponibles en el MVP-2.</p>
+        <h2>Informes de avance</h2>
+        <?php if (!$informes): ?><p>La cohorte no tiene hitos de informe.</p><?php else: ?>
+            <table><tr><th>Hito</th><th>Fecha límite</th><th>Estado</th><th>Presentado</th><th>Avance</th></tr>
+                <?php foreach ($informes as $item): ?><tr><td><?= e($item['nombre']) ?></td><td><?= e(mg_fecha_corta($item['fecha_limite'])) ?></td><td><?= e(MgInforme::ESTADOS[$item['estado_informe']]) ?></td><td><?= e(mg_fecha_corta($item['fecha_presentacion'])) ?></td><td><?= $item['id_informe'] ? (int) $item['porcentaje_avance'] . '%' . ($item['avance_esperado_pct'] !== null ? ' (esperado ~' . (int) $item['avance_esperado_pct'] . '%)' : '') : '—' ?></td></tr><?php endforeach; ?>
+            </table>
+        <?php endif; ?>
+
+        <h2>Reuniones</h2>
+        <p><?= (int) ($resumenReuniones['total'] ?? 0) ?> registradas · <?= (int) ($resumenReuniones['validadas'] ?? 0) ?> validadas · <?= (int) ($resumenReuniones['observadas'] ?? 0) ?> observadas · inasistencias: <?= (int) ($resumenReuniones['faltas_estudiante'] ?? 0) ?> del estudiante, <?= (int) ($resumenReuniones['faltas_tutor'] ?? 0) ?> del tutor.</p>
+        <?php if ($reuniones): ?>
+            <table><tr><th>Fecha</th><th>Modalidad</th><th>Temas</th><th>Asistencia (est./tutor)</th><th>Validación</th></tr>
+                <?php foreach ($reuniones as $item): ?><tr><td><?= e(mg_fecha_corta($item['fecha'])) ?> <?= e(substr((string) $item['hora_inicio'], 0, 5)) ?></td><td><?= e(MgReunion::MODALIDADES[$item['modalidad']]) ?></td><td><?= e($item['temas']) ?></td><td><?= e($item['asistio_estudiante']) ?> / <?= e($item['asistio_tutor']) ?></td><td><?= e(MgReunion::ESTADOS[$item['estado_validacion']]) ?></td></tr><?php endforeach; ?>
+            </table>
+        <?php endif; ?>
+
+        <h2>Alertas abiertas</h2>
+        <?php if (!$alertas): ?><p>Ninguna.</p><?php else: ?>
+            <table><tr><th>Severidad</th><th>Alerta</th><th>Detalle</th></tr>
+                <?php foreach ($alertas as $item): ?><tr><td><?= e(MgAlerta::SEVERIDADES[$item['severidad']]) ?></td><td><?= e($item['titulo']) ?></td><td><?= e($item['detalle']) ?></td></tr><?php endforeach; ?>
+            </table>
+        <?php endif; ?>
     </article>
 </body>
 </html>

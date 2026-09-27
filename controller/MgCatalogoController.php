@@ -140,6 +140,8 @@ final class MgCatalogoController
         }
         if (!isset(MgCatalogo::TIPOS_HITO[$data['tipo']])) {
             $errors[] = 'Seleccione un tipo de hito válido.';
+        } elseif ($hitoId !== null && $data['tipo'] !== 'informe' && (new MgInforme())->contarPorHito($hitoId) > 0) {
+            $errors[] = 'El hito ya tiene informes de avance registrados: no puede dejar de ser un informe.';
         }
         $nombreError = validation_label($data['nombre'], 'nombre del hito', 120);
         if ($nombreError !== null) {
@@ -176,6 +178,10 @@ final class MgCatalogoController
     {
         if ($this->catalogo->hito($hitoId) === null) {
             return 'El hito no existe.';
+        }
+        $informes = (new MgInforme())->contarPorHito($hitoId);
+        if ($informes > 0) {
+            return 'El hito tiene ' . $informes . ' informe(s) de avance registrados: edítalo en lugar de eliminarlo.';
         }
         try {
             $this->catalogo->eliminarHito($hitoId);

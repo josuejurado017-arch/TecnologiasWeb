@@ -74,6 +74,9 @@ require_once dirname(__DIR__) . '/models/MgAsignacion.php';
 require_once dirname(__DIR__) . '/models/MgTribunal.php';
 require_once dirname(__DIR__) . '/models/MgDefensa.php';
 require_once dirname(__DIR__) . '/models/MgDocumento.php';
+require_once dirname(__DIR__) . '/models/MgReunion.php';
+require_once dirname(__DIR__) . '/models/MgInforme.php';
+require_once dirname(__DIR__) . '/models/MgAlerta.php';
 require_once dirname(__DIR__) . '/controller/AuthController.php';
 require_once dirname(__DIR__) . '/controller/UsuariosController.php';
 require_once dirname(__DIR__) . '/controller/CarrerasController.php';
@@ -99,6 +102,7 @@ require_once dirname(__DIR__) . '/controller/MgCatalogoController.php';
 require_once dirname(__DIR__) . '/controller/MgExpedientesController.php';
 require_once dirname(__DIR__) . '/controller/MgDefensasController.php';
 require_once dirname(__DIR__) . '/controller/MgDocumentosController.php';
+require_once dirname(__DIR__) . '/controller/MgSeguimientoController.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_set_cookie_params([

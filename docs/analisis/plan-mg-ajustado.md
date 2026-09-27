@@ -1,6 +1,6 @@
 # Plan ajustado — Módulo "Modalidades de Grado" (MVP-1)
 
-Versión 1.1 · 2026-09-25 · Ajuste del *Plan de implementación MG v1.0* (base ENT-03) a este repositorio.
+Versión 1.2 · 2026-09-27 · Ajuste del *Plan de implementación MG v1.0* (base ENT-03) a este repositorio.
 
 El plan original sigue siendo la referencia **funcional** (reglas RN-MG, prioridades del Coordinador, preguntas y documentos pendientes). Este documento corrige su parte **técnica**, que describía otro código (`controllers/`, `database/migrations`, `init.sql`, `csrf_validar()`, `lista_helper.php`...), y registra las decisiones tomadas al implementar.
 
@@ -40,6 +40,10 @@ Etiquetas: **[CONFIRMADO]** dicho por el Coordinador en ENT-03 · **[PENDIENTE]*
    | `mg.documentos` (cartas, citaciones) | ✔ | ✔ | ✔ | – | – |
    | `mg.reportes` | ✔ | ✔ | ✔ | – | – |
    | `mg.bitacora` | ✔ | ✔ | – | – | – |
+   | `mg.validar` (validar, observar y corregir reuniones) | ✔ | ✔ | – | – | – |
+   | `mg.informe` (informes en nombre del tutor) | ✔ | ✔ | ✔ | propios (tutor vigente) | – |
+   | `mg.alertas` (panel y atender) | ✔ | ✔ | ✔ | – | – |
+   | Registrar reuniones | – | – | – | propias (tutor vigente) | ve las suyas |
 
    [PENDIENTE] validar los cargos internos del auxiliar con el Coordinador (pregunta 1).
 4. **Ninguna cifra dura**: todo número dudoso está en `parametros_mg` con su fuente y estado de evidencia, y solo produce **advertencias** (C-01 carga del tutor, anticipación de tribunales, tutor = tribunal).
@@ -70,7 +74,30 @@ Etiquetas: **[CONFIRMADO]** dicho por el Coordinador en ENT-03 · **[PENDIENTE]*
 | HU-033 | Reporte por cohorte con gráfico y CSV | `/mg/reportes.php` |
 | — | Vistas propias: tutor "Mis tesistas", estudiante "Mi modalidad de grado" | `/mg/mis-tesistas.php`, `/mg/mi-modalidad.php` |
 
-P2 (reuniones, informes de avance, alertas, dashboard completo) y P3 quedan como en el plan original. La tabla `calendario_mg` ya admite hitos tipo `informe`, así que C-02 (3 o 4 informes) se resolverá cargando hitos, sin tocar código.
+## 3b. Alcance entregado (MVP-2, Sprint 5)
+
+| HU | Qué | Dónde |
+|---|---|---|
+| HU-034 | Reuniones sin horario fijo: el **tutor vigente** registra fecha, horas, modalidad, lugar o enlace de Teams, temas, avance y asistencia de ambos. No se aceptan reuniones futuras ni en curso, ni de hace más de `plazo_registro_reunion_dias`, ni cruces con otra reunión del tutor o del estudiante. Sin fotos ni archivos (RN-MG-11) | `/mg/seguimiento.php`, `/mg/reuniones/form.php` |
+| HU-035 | Validación: por validar → validada u observada (con motivo, notifica al tutor). Una validada ya no la edita el tutor; la observada que corrige vuelve a "por validar". La Coordinación corrige con motivo y queda en bitácora (antes/después) | `/mg/reuniones/` |
+| HU-036 | Línea de tiempo por cohorte: hitos y defensas con semáforo (cumplido / vencido / próximo / programado) y cumplimiento "X de Y expedientes" por hito | `/mg/cohortes/linea.php` |
+| HU-037 | Informes de avance por hito de informe: fecha, % (0-100), digital/físico, respaldo impreso. Estado calculado (presentado / tarde / pendiente / no presentado / no aplica). El tutor vigente o `mg.informe` los registra; corregir exige motivo | `/mg/informes/form.php` |
+| HU-038 | Panel de alertas A1-A9 calculadas al abrir (sin cron), con severidad, filtros y "marcar atendida" con nota | `/mg/alertas.php` |
+| HU-039 | Dashboard del Coordinador: expedientes por etapa, alertas altas, defensas en 14 días, documentos del mes, reuniones por validar y carga por tutor (Chart.js) | `/mg/` |
+| HU-040 | Bitácora con filtros por tabla, acción, usuario, registro y fechas, y exportación CSV. Reuniones, informes y alertas atendidas también se registran | `/mg/bitacora.php` |
+
+Integración con lo anterior: la ficha del expediente, el reporte por estudiante (HU-032), el reporte por cohorte (columna *Avance* = último informe, también en el CSV), *Mis tesistas* y *Mi modalidad de grado* muestran reuniones, informes y alertas.
+
+Decisiones de MVP-2 [PROPUESTA]:
+
+11. **Solo el tutor vigente registra reuniones.** La Coordinación no registra reuniones nuevas: las corrige con motivo (incluso fuera del plazo). Un tutor reemplazado ya no edita las suyas.
+12. **Alertas con clave de situación.** Por ejemplo, A2 lleva la fecha de referencia y A8 la carga. Marcar atendida guarda esa clave; si la situación cambia (nueva reunión, otra carga), aparece una alerta nueva. Ninguna alerta cambia el estado del expediente (RN-MG-22).
+13. **A3 mide la semana anterior completa** (lunes a domingo) y solo cuenta reuniones con asistencia de ambos que no estén observadas. A6 = dos informes consecutivos vencidos sin presentar.
+14. **"No aplica"**: los informes de una etapa que el expediente todavía no alcanzó, o posteriores a su cierre, y los de modalidades sin tutor (Examen, Excelencia), no generan alertas.
+15. Un hito con informes registrados no se elimina ni deja de ser de tipo informe.
+16. Parámetros nuevos (propuesta): `dias_hito_proximo` = 14 y `dias_alerta_citaciones` = 3.
+
+P3 queda como en el plan original. C-02 (3 o 4 informes) se resuelve cargando hitos de informe en el calendario, sin tocar código.
 
 ## 4. Migraciones
 
@@ -80,6 +107,7 @@ P2 (reuniones, informes de avance, alertas, dashboard completo) y P3 quedan como
 | `db/045_mg_expedientes.sql` | `expedientes_mg`, `expediente_etapas_mg`, `importaciones_mg`, `importaciones_mg_detalle` |
 | `db/046_mg_tutores_documentos.sql` | `asignaciones_tutor_mg`, `plantillas_documento_mg` (3 provisionales), `documentos_generados_mg`, `contadores_documento_mg` |
 | `db/047_mg_defensas.sql` | `tribunales_mg`, `defensas_mg`, `calificaciones_mg` |
+| `db/048_mg_seguimiento.sql` | `reuniones_mg`, `informes_avance_mg` (UNIQUE expediente+hito), `alertas_atendidas_mg`, 2 parámetros nuevos |
 
 Aplicar en orden con `mysql ... testdb < db/04x_*.sql` (nunca pegando el SQL en la consola).
 
@@ -87,4 +115,5 @@ Aplicar en orden con `mysql ... testdb < db/04x_*.sql` (nunca pegando el SQL en 
 
 1. Reunión con el Coordinador: `docs/analisis/preguntas-coordinador.md`.
 2. Con la carta y citaciones reales, reemplazar las plantillas desde `/mg/plantillas/` (sin tocar código).
-3. Sprint 5 (P2): reuniones, informes de avance, panel de alertas, dashboard del Coordinador.
+3. Demo del Sprint 5 al Coordinador: reuniones + validación, informes, alertas y dashboard. Validar con él la definición de cada alerta, los umbrales y quién valida reuniones (preguntas 1 y 9).
+4. P3: evidencia digital de reuniones (C-03), alertas por correo con cron, integración SATS, fórmula oficial de notas.

@@ -97,6 +97,8 @@ services:
       - ./db/045_mg_expedientes.sql:/docker-entrypoint-initdb.d/045_mg_expedientes.sql:ro
       - ./db/046_mg_tutores_documentos.sql:/docker-entrypoint-initdb.d/046_mg_tutores_documentos.sql:ro
       - ./db/047_mg_defensas.sql:/docker-entrypoint-initdb.d/047_mg_defensas.sql:ro
+      # 048: MG MVP-2, reuniones, informes de avance y alertas atendidas.
+      - ./db/048_mg_seguimiento.sql:/docker-entrypoint-initdb.d/048_mg_seguimiento.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s

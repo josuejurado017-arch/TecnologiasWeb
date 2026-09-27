@@ -42,7 +42,10 @@ $etapas = (new MgExpediente())->etapas($id);
 $activo = $expediente['estado'] === 'activo';
 $enDefensa = $activo && in_array($expediente['etapa_actual'], ['mg1', 'mg2'], true);
 $hayProgramada = $enDefensa && $defensasModel->programada($id, (string) $expediente['etapa_actual']) !== null;
-$documentoNuevo = (int) filter_input(INPUT_GET, 'documento', FILTER_VALIDATE_INT);
+$resumenReuniones = (new MgReunion())->resumen($id);
+$informesHitos = (new MgInforme())->porExpediente($expediente);
+$alertasExpediente = (new MgAlerta())->delExpediente($id);
+$documentoNuevo =(int) filter_input(INPUT_GET, 'documento', FILTER_VALIDATE_INT);
 $title = 'Expediente · ' . $expediente['estudiante'];
 
 require dirname(__DIR__, 3) . '/views/mg/expediente.php';

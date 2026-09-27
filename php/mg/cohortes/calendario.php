@@ -51,7 +51,10 @@ require dirname(__DIR__, 3) . '/views/layouts/header.php';
             <h1><?= e($cohorte['nombre']) ?></h1>
             <p>Calendario de hitos · inicio <?= e(mg_fecha_corta($cohorte['fecha_inicio'])) ?>. Informes de MG2 cargados: <strong><?= count(array_filter($hitos, static fn (array $h): bool => $h['tipo'] === 'informe')) ?></strong>.</p>
         </div>
-        <a class="button secondary" href="<?= e(app_url('mg/cohortes/')) ?>">Volver a cohortes</a>
+        <div class="page-heading-actions">
+            <a class="button" href="<?= e(app_url('mg/cohortes/linea.php?id=' . $id)) ?>">Línea de tiempo</a>
+            <a class="button secondary" href="<?= e(app_url('mg/cohortes/')) ?>">Volver a cohortes</a>
+        </div>
     </div>
 
     <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>

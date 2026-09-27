@@ -168,11 +168,13 @@ Luego aplicar `db/042_division_grupos.sql` (idempotente). Con un grupo lleno, la
 
 Luego aplicar `db/043_tipos_tutoria.sql` (idempotente). Agrega **tipos de tutoría** con nombre libre (*Períodos → Tipos de tutoría*): Pregrado, Postgrado, Nivelación... Cada período es de un tipo, y puede haber **un período activo por tipo**, así que tutorías de distinto tipo corren en paralelo. La duración máxima de un período la fija su tipo (vacío = sin tope); los períodos existentes pasan a *Pregrado*, que conserva el tope de 42 días. El selector **Tipo de tutoría** de la barra superior define qué período activo muestra todo el portal (grupos, ofertas, estudiantes, contadores, resumen). El motor de asignación no depende de ese selector: trabaja siempre sobre el período de cada solicitud o grupo.
 
-### Modalidades de Grado (044-047)
+### Modalidades de Grado (044-048)
 
 Aplicar en orden `db/044_mg_base.sql`, `db/045_mg_expedientes.sql`, `db/046_mg_tutores_documentos.sql` y `db/047_mg_defensas.sql` (idempotentes, siempre con `mysql ... testdb < archivo.sql`). Agregan el módulo **Modalidades de Grado** en `/mg/`, separado del de tutorías: expedientes por estudiante (MG1 → MG2) agrupados por cohorte, tutor con historial y carta de asignación automática, tribunales, defensas con control de choques, citaciones, notas con bitácora, reportes por estudiante y por cohorte (CSV) e importación del padrón por CSV.
 
 Roles nuevos: `coordinador_mg` y `auxiliar_mg` (se crean en *Cuentas de acceso*; su inicio es `/mg/`). Los permisos por acción están en `includes/Auth.php` (`Auth::canDo`). Tutor y estudiante ven lo propio en *Mis tesistas (grado)* y *Mi modalidad de grado*. Las cifras dudosas de las entrevistas son parámetros en *Parámetros y plantillas* y solo advierten. Diseño y decisiones: `docs/analisis/plan-mg-ajustado.md`; preguntas pendientes: `docs/analisis/preguntas-coordinador.md`.
+
+`db/048_mg_seguimiento.sql` (MVP-2) agrega el seguimiento: el tutor vigente registra sus **reuniones** con asistencia de ambos (desde *Mis tesistas*), la Coordinación las valida u observa en *Reuniones*, los **informes de avance** se registran por hito de informe del calendario, y el panel de **Alertas** (A1-A9) se calcula al abrirlo, sin cron. El panel de grado es el dashboard del Coordinador; la *Línea de tiempo* de cada cohorte muestra el semáforo de hitos; la *Bitácora* filtra por usuario, acción y fechas y exporta CSV.
 
 **Inscripción tardía:** como en las materias de la UPDS, a un grupo se puede entrar hasta 4 días después de su primera sesión (`Grupo::DIAS_INSCRIPCION_TARDIA`). Después el motor ya no inscribe en ese grupo y la coordinación tampoco puede inscribir a mano.
 

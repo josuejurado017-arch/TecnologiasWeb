@@ -17,15 +17,17 @@ $filtros = [
 $modelo = new MgExpediente();
 $expedientes = $modelo->listar($filtros);
 $totales = $modelo->totales($filtros);
+$avances = (new MgInforme())->ultimosAvances(array_column($expedientes, 'id_expediente'));
 
 if (($_GET['export'] ?? '') === 'csv') {
     // CSV para Excel: BOM, separador ';' y celdas neutralizadas contra formulas (includes/Csv.php).
     $salida = csv_download('modalidades-grado-' . date('Y-m-d'));
-    csv_row($salida, ['Estudiante', 'R.U.', 'Carrera', 'Modalidad', 'Cohorte', 'Etapa', 'Estado', 'Tutor', 'Inicio', 'Cierre', 'Tema']);
+    csv_row($salida, ['Estudiante', 'R.U.', 'Carrera', 'Modalidad', 'Cohorte', 'Etapa', 'Estado', 'Tutor', 'Inicio', 'Cierre', 'Avance (%)', 'Último informe', 'Tema']);
     foreach ($expedientes as $item) {
+        $avance = $avances[(int) $item['id_expediente']] ?? null;
         csv_row($salida, [$item['estudiante'], $item['registro_universitario'], $item['carrera'], $item['modalidad'], $item['cohorte'],
             MgExpediente::ETAPAS[$item['etapa_actual']], MgExpediente::ESTADOS[$item['estado']], $item['tutor'] ?? '',
-            $item['fecha_inicio'], $item['fecha_cierre'] ?? '', $item['titulo_trabajo'] ?? '']);
+            $item['fecha_inicio'], $item['fecha_cierre'] ?? '', $avance ? (int) $avance['porcentaje_avance'] : '', $avance['hito'] ?? '', $item['titulo_trabajo'] ?? '']);
     }
     fclose($salida);
     exit;
@@ -44,7 +46,7 @@ require dirname(__DIR__, 2) . '/views/layouts/header.php';
     <div class="page-heading">
         <div>
             <h1>Reporte por cohorte</h1>
-            <p>Situación de los expedientes según los filtros. El avance por informe llega con el registro de informes (MVP-2).</p>
+            <p>Situación de los expedientes según los filtros. El avance es el del último informe presentado.</p>
         </div>
         <a class="button" href="<?= e(app_url('mg/reportes.php?' . ($query !== '' ? $query . '&' : '') . 'export=csv')) ?>">Exportar CSV (Excel)</a>
     </div>
@@ -81,7 +83,8 @@ require dirname(__DIR__, 2) . '/views/layouts/header.php';
                         <td><?= e($item['cohorte']) ?></td>
                         <td><?= mg_badge_etapa((string) $item['etapa_actual']) ?></td>
                         <td><?= e(mg_fecha_corta($item['fecha_inicio'])) ?></td>
-                        <td><small>MVP-2</small></td>
+                        <?php $avance = $avances[(int) $item['id_expediente']] ?? null; ?>
+                        <td><?= $avance ? (int) $avance['porcentaje_avance'] . '%<br><small>' . e($avance['hito']) . '</small>' : '—' ?></td>
                         <td><?= e((string) ($item['tutor'] ?? '—')) ?></td>
                         <td><?= mg_badge_estado((string) $item['estado']) ?></td>
                     </tr>

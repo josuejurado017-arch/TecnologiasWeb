@@ -160,6 +160,14 @@ if ($isAuthenticated) {
                         <span class="nav-icon">DF</span>
                         <span>Defensas</span>
                     </a>
+                    <a class="nav-link <?= $activePage === 'mg-reuniones' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/reuniones/')) ?>">
+                        <span class="nav-icon">RE</span>
+                        <span>Reuniones</span>
+                    </a>
+                    <?php if (Auth::canDo('mg.alertas')): ?><a class="nav-link <?= $activePage === 'mg-alertas' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/alertas.php')) ?>">
+                        <span class="nav-icon">AL</span>
+                        <span>Alertas</span>
+                    </a><?php endif; ?>
                     <?php if (Auth::canDo('mg.importar')): ?><a class="nav-link <?= $activePage === 'mg-importar' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/importar.php')) ?>">
                         <span class="nav-icon">IM</span>
                         <span>Importar padrón</span>
