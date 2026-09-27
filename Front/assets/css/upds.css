@@ -794,3 +794,53 @@ html[data-theme="light"] .materia-rechazado .materia-estado, html[data-theme="li
 .tarjeta-sin-tutor .button { align-self: flex-start; margin-top: 0.35rem; }
 .inline-details { display: inline-block; margin-left: 0.5rem; }
 .inline-details summary { color: var(--upds-muted); cursor: pointer; font-size: 0.75rem; }
+
+/* ------------------------------------------------------------------
+   Modalidades de Grado (/mg/)
+   ------------------------------------------------------------------ */
+.mg-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 1rem; }
+.mg-seccion { margin-top: 1rem; }
+.mg-lista { display: grid; gap: 0.55rem; list-style: none; margin: 0; padding: 0; }
+.mg-lista li { border-bottom: 1px solid var(--upds-line); font-size: 0.85rem; padding-bottom: 0.5rem; }
+.mg-lista li:last-child { border-bottom: 0; }
+.mg-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+.mg-tabs a { background: var(--upds-panel-2); border: 1px solid var(--upds-line); border-radius: 999px; font-size: 0.78rem; padding: 0.3rem 0.8rem; text-decoration: none; }
+.mg-timeline { border-left: 2px solid var(--upds-line); display: grid; gap: 0.6rem; list-style: none; margin: 0.5rem 0 0; padding: 0 0 0 1rem; }
+.mg-timeline li { font-size: 0.82rem; position: relative; }
+.mg-timeline li::before { background: var(--upds-purple); border-radius: 50%; content: ""; height: 8px; left: calc(-1rem - 5px); position: absolute; top: 0.4rem; width: 8px; }
+.mg-subtitulo { font-size: 0.85rem; margin: 1.1rem 0 0.4rem; }
+.mg-filtros { align-items: end; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); margin-bottom: 1rem; }
+.mg-filtros label { margin-top: 0; }
+.mg-filtros-acciones { display: flex; gap: 0.5rem; }
+.mg-filtros-acciones .button, .mg-filtros-acciones button { margin-top: 0; }
+.mg-pie-form { padding: 1rem; }
+.mg-celda-valor { min-width: 9rem; }
+.mg-aviso { margin: 0 0 1.25rem; white-space: normal; }
+.mg-bloque { border-bottom: 1px solid var(--upds-line); margin-bottom: 1.25rem; padding-bottom: 1.25rem; }
+.mg-docentes { border: 1px solid var(--upds-line); border-radius: 10px; display: grid; gap: 0.4rem; margin: 0 0 0.5rem; max-height: 26rem; overflow-y: auto; padding: 0.75rem; }
+.mg-docentes legend { color: var(--upds-muted); font-size: 0.78rem; padding: 0 0.3rem; }
+.mg-docente { align-items: flex-start; border: 1px solid transparent; border-radius: 8px; cursor: pointer; display: flex; gap: 0.6rem; margin: 0; padding: 0.45rem 0.55rem; }
+.mg-docente:hover { background: var(--upds-panel-2); }
+.mg-docente input { margin-top: 0.3rem; width: auto; }
+.mg-docente span { display: grid; gap: 0.15rem; }
+.mg-docente small { color: var(--upds-muted); font-size: 0.74rem; }
+.mg-docente-carga { border-color: rgba(220, 174, 54, 0.45); }
+.mg-check { align-items: center; display: flex; gap: 0.5rem; margin-top: 1rem; }
+.mg-check input { margin: 0; width: auto; }
+.mg-acciones { flex-wrap: wrap; }
+.mg-link { color: var(--upds-teal); }
+.mg-codigo { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.78rem; }
+.mg-preview { background: #fff; border-radius: 8px; color: #1b1f29; font-family: Georgia, serif; font-size: 0.85rem; line-height: 1.5; padding: 1.25rem; }
+.mg-preview .doc-derecha { text-align: right; }
+.mg-preview .doc-firma { border-top: 1px solid #333; margin: 2.5rem auto 0; max-width: 60%; text-align: center; }
+.mg-preview .doc-provisional { background: #fff3cd; color: #7a5c00; font-size: 0.75rem; padding: 0.25rem; text-align: center; }
+.mg-ficha-breve { border-bottom: 1px solid var(--upds-line); padding: 0.75rem 0; }
+.mg-ficha-breve:last-child { border-bottom: 0; }
+.mg-ficha-breve h3 { font-size: 1rem; margin: 0 0 0.3rem; }
+.mg-ficha-breve small { color: var(--upds-muted); font-weight: 400; }
+.mg-ficha-breve p { font-size: 0.85rem; margin: 0.25rem 0; }
+.mg-tabla-datos { margin-bottom: 1rem; }
+.mg-tabla-datos th { text-align: left; width: 8rem; }
+@media (max-width: 860px) {
+    .mg-grid { grid-template-columns: 1fr; }
+}

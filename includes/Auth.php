@@ -124,4 +124,51 @@ final class Auth
             exit('No tiene permisos para acceder a este modulo.');
         }
     }
+
+    /** Roles del equipo de Modalidades de Grado (db/044). Su inicio es /mg/. */
+    public const MG_ROLES = ['coordinador_mg', 'auxiliar_mg'];
+
+    /**
+     * Permisos por accion de Modalidades de Grado (docs/analisis/plan-mg-ajustado.md §2).
+     * Fijos en codigo, como ROLE_MODULES: la matriz dinamica se elimino en db/017.
+     * El administrador puede todo. 'mg.propio' = ver solo lo propio (tutor: sus
+     * tesistas; estudiante: su expediente y sus notas publicadas).
+     */
+    private const MG_ACTIONS = [
+        'coordinador_mg' => ['mg.ver', 'mg.parametros', 'mg.catalogo', 'mg.importar', 'mg.expediente', 'mg.tutor',
+            'mg.tribunal', 'mg.defensa', 'mg.calificacion', 'mg.documentos', 'mg.reportes', 'mg.bitacora'],
+        // [PENDIENTE] cargos exactos del auxiliar (pregunta 1 al Coordinador).
+        'auxiliar_mg' => ['mg.ver', 'mg.importar', 'mg.expediente', 'mg.tribunal', 'mg.defensa', 'mg.documentos', 'mg.reportes'],
+        'tutor' => ['mg.propio'],
+        'estudiante' => ['mg.propio'],
+    ];
+
+    public static function canDo(string $action): bool
+    {
+        if (!self::check()) {
+            return false;
+        }
+
+        $role = self::user()['nombre_rol'] ?? '';
+        if ($role === 'administrador') {
+            return $action !== 'mg.propio';
+        }
+
+        return in_array($action, self::MG_ACTIONS[$role] ?? [], true);
+    }
+
+    public static function requireAction(string $action): void
+    {
+        self::requireLogin();
+
+        if (!self::canDo($action)) {
+            http_response_code(403);
+            exit('No tiene permisos para realizar esta accion.');
+        }
+    }
+
+    public static function isMgRole(): bool
+    {
+        return in_array(self::user()['nombre_rol'] ?? '', self::MG_ROLES, true);
+    }
 }

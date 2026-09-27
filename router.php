@@ -132,6 +132,21 @@ if (isset($routes[$requestPath])) {
     return;
 }
 
+// Modalidades de Grado: /mg/... se sirve desde php/mg/ (en Apache lo resuelve el
+// DocumentRoot). Solo scripts .php dentro de php/mg; una carpeta sirve su index.php.
+if ($requestPath === '/mg' || strpos($requestPath, '/mg/') === 0) {
+    $mgRoot = realpath($projectRoot . '/php/mg');
+    $relative = (string) substr($requestPath, 3);
+    if ($relative === '' || substr($relative, -1) === '/') {
+        $relative .= '/index.php';
+    }
+    $target = $mgRoot !== false ? realpath($mgRoot . DIRECTORY_SEPARATOR . ltrim($relative, '/')) : false;
+    if ($target !== false && is_file($target) && strpos($target, $mgRoot . DIRECTORY_SEPARATOR) === 0 && substr($target, -4) === '.php') {
+        require $target;
+        return;
+    }
+}
+
 foreach (['css', 'js', 'Front/assets'] as $assetDirectory) {
     $assetRoot = realpath($projectRoot . DIRECTORY_SEPARATOR . $assetDirectory);
     $assetPath = realpath($projectRoot . DIRECTORY_SEPARATOR . ltrim($requestPath, '/'));

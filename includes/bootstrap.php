@@ -37,6 +37,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/Validation.php';
 require_once __DIR__ . '/Csv.php';
 require_once __DIR__ . '/Xlsx.php';
+require_once __DIR__ . '/mg_helpers.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Auth.php';
 require_once dirname(__DIR__) . '/models/Usuario.php';
@@ -65,6 +66,14 @@ require_once dirname(__DIR__) . '/models/RegistroEstudiante.php';
 require_once dirname(__DIR__) . '/models/RegistroTutor.php';
 require_once dirname(__DIR__) . '/models/TutorPortal.php';
 require_once dirname(__DIR__) . '/models/EstadoCuenta.php';
+require_once dirname(__DIR__) . '/models/MgBitacora.php';
+require_once dirname(__DIR__) . '/models/MgParametro.php';
+require_once dirname(__DIR__) . '/models/MgCatalogo.php';
+require_once dirname(__DIR__) . '/models/MgExpediente.php';
+require_once dirname(__DIR__) . '/models/MgAsignacion.php';
+require_once dirname(__DIR__) . '/models/MgTribunal.php';
+require_once dirname(__DIR__) . '/models/MgDefensa.php';
+require_once dirname(__DIR__) . '/models/MgDocumento.php';
 require_once dirname(__DIR__) . '/controller/AuthController.php';
 require_once dirname(__DIR__) . '/controller/UsuariosController.php';
 require_once dirname(__DIR__) . '/controller/CarrerasController.php';
@@ -86,6 +95,10 @@ require_once dirname(__DIR__) . '/controller/AccesosController.php';
 require_once dirname(__DIR__) . '/controller/RegistroController.php';
 require_once dirname(__DIR__) . '/controller/RegistroTutorController.php';
 require_once dirname(__DIR__) . '/controller/TutorPortalController.php';
+require_once dirname(__DIR__) . '/controller/MgCatalogoController.php';
+require_once dirname(__DIR__) . '/controller/MgExpedientesController.php';
+require_once dirname(__DIR__) . '/controller/MgDefensasController.php';
+require_once dirname(__DIR__) . '/controller/MgDocumentosController.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_set_cookie_params([

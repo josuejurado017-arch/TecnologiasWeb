@@ -8,14 +8,19 @@ $role = $user['nombre_rol'] ?? '';
 // docente del tutor. Consultas baratas; si fallan, el menu se muestra sin ellos.
 $reviewCounts = ['tutores' => 0, 'grupos' => 0, 'ofertas' => 0];
 $tutorHabilitacion = null;
+// Modalidades de Grado: tutor y estudiante ven su enlace solo si tienen expedientes.
+$mgPropio = false;
 // Tipo de tutoria con el que trabaja el portal (db/043): todo lo que muestra "el
 // periodo activo" es el de este tipo. Se cambia con el selector de la barra superior.
 $tiposSeleccionables = [];
 $tipoActualId = 0;
 if ($isAuthenticated) {
     try {
-        $tiposSeleccionables = TipoTutoria::seleccionables();
-        $tipoActualId = TipoTutoria::actual();
+        // El equipo de Modalidades de Grado no trabaja con periodos de tutoria.
+        if (!Auth::isMgRole()) {
+            $tiposSeleccionables = TipoTutoria::seleccionables();
+            $tipoActualId = TipoTutoria::actual();
+        }
     } catch (Throwable $exception) {
         error_log('Selector de tipo de tutoria: ' . $exception->getMessage());
     }
@@ -26,6 +31,20 @@ if ($isAuthenticated) {
             $reviewCounts['ofertas'] = (new TutorMateriaConfig())->countPendientes();
         } elseif ($role === 'tutor') {
             $tutorHabilitacion = (new Tutor())->estadoDocenteByUserId((int) ($user['id_usuario'] ?? 0));
+        }
+        if ($role === 'tutor') {
+            $mgConsulta = Database::connection()->prepare(
+                'SELECT 1 FROM tutores t WHERE t.id_usuario = :u AND (EXISTS (SELECT 1 FROM asignaciones_tutor_mg a WHERE a.id_tutor = t.id_tutor)
+                    OR EXISTS (SELECT 1 FROM tribunales_mg tr WHERE tr.id_tutor = t.id_tutor)) LIMIT 1'
+            );
+        } elseif ($role === 'estudiante') {
+            $mgConsulta = Database::connection()->prepare(
+                'SELECT 1 FROM expedientes_mg e INNER JOIN estudiantes es ON es.id_estudiante = e.id_estudiante WHERE es.id_usuario = :u LIMIT 1'
+            );
+        }
+        if (isset($mgConsulta)) {
+            $mgConsulta->execute(['u' => (int) ($user['id_usuario'] ?? 0)]);
+            $mgPropio = (bool) $mgConsulta->fetchColumn();
         }
     } catch (Throwable $exception) {
         error_log('Contadores de revision: ' . $exception->getMessage());
@@ -127,6 +146,41 @@ if ($isAuthenticated) {
                         <span>Espacios de tutoría</span>
                     </a>
                 <?php endif; ?>
+                <?php if (Auth::canDo('mg.ver')): ?>
+                    <span class="nav-label">Modalidades de Grado</span>
+                    <a class="nav-link <?= $activePage === 'mg-panel' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/')) ?>">
+                        <span class="nav-icon">MG</span>
+                        <span>Panel de grado</span>
+                    </a>
+                    <a class="nav-link <?= $activePage === 'mg-expedientes' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/expedientes/')) ?>">
+                        <span class="nav-icon">EX</span>
+                        <span>Expedientes</span>
+                    </a>
+                    <a class="nav-link <?= $activePage === 'mg-defensas' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/defensas/')) ?>">
+                        <span class="nav-icon">DF</span>
+                        <span>Defensas</span>
+                    </a>
+                    <?php if (Auth::canDo('mg.importar')): ?><a class="nav-link <?= $activePage === 'mg-importar' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/importar.php')) ?>">
+                        <span class="nav-icon">IM</span>
+                        <span>Importar padrón</span>
+                    </a><?php endif; ?>
+                    <a class="nav-link <?= $activePage === 'mg-cohortes' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/cohortes/')) ?>">
+                        <span class="nav-icon">CO</span>
+                        <span>Cohortes y calendario</span>
+                    </a>
+                    <?php if (Auth::canDo('mg.reportes')): ?><a class="nav-link <?= $activePage === 'mg-reportes' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/reportes.php')) ?>">
+                        <span class="nav-icon">RG</span>
+                        <span>Reporte por cohorte</span>
+                    </a><?php endif; ?>
+                    <?php if (Auth::canDo('mg.parametros')): ?><a class="nav-link <?= $activePage === 'mg-parametros' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/parametros.php')) ?>">
+                        <span class="nav-icon">PA</span>
+                        <span>Parámetros y plantillas</span>
+                    </a><?php endif; ?>
+                    <?php if (Auth::canDo('mg.bitacora')): ?><a class="nav-link <?= $activePage === 'mg-bitacora' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/bitacora.php')) ?>">
+                        <span class="nav-icon">BI</span>
+                        <span>Bitácora</span>
+                    </a><?php endif; ?>
+                <?php endif; ?>
                 <?php if ($role === 'tutor'): ?>
                     <span class="nav-label">Mi espacio</span>
                     <?php if (Auth::can('tutores')): ?><a class="nav-link <?= $activePage === 'mi-perfil-tutor' ? 'is-active' : '' ?>" href="<?= e(app_url('mi-perfil-tutor/')) ?>">
@@ -136,6 +190,10 @@ if ($isAuthenticated) {
                     <?php if (Auth::can('asignaciones')): ?><a class="nav-link <?= $activePage === 'mis-materias' ? 'is-active' : '' ?>" href="<?= e(app_url('mis-materias/')) ?>">
                         <span class="nav-icon">MA</span>
                         <span>Mis materias</span>
+                    </a><?php endif; ?>
+                    <?php if ($mgPropio): ?><a class="nav-link <?= $activePage === 'mg-mis-tesistas' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/mis-tesistas.php')) ?>">
+                        <span class="nav-icon">TG</span>
+                        <span>Mis tesistas (grado)</span>
                     </a><?php endif; ?>
                     <span class="nav-label">Operación</span>
                 <?php endif; ?>
@@ -158,6 +216,10 @@ if ($isAuthenticated) {
                     <?php if (Auth::can('evaluaciones')): ?><a class="nav-link <?= $activePage === 'mis-evaluaciones' ? 'is-active' : '' ?>" href="<?= e(app_url('mis-evaluaciones/')) ?>">
                         <span class="nav-icon">EV</span>
                         <span>Evaluaciones</span>
+                    </a><?php endif; ?>
+                    <?php if ($mgPropio): ?><a class="nav-link <?= $activePage === 'mg-mi-modalidad' ? 'is-active' : '' ?>" href="<?= e(app_url('mg/mi-modalidad.php')) ?>">
+                        <span class="nav-icon">MG</span>
+                        <span>Mi modalidad de grado</span>
                     </a><?php endif; ?>
                 <?php endif; ?>
             </nav>
@@ -257,6 +319,8 @@ if ($isAuthenticated) {
                         <?php elseif ($role === 'tutor'): ?>
                             <a role="menuitem" href="<?= e(app_url('mi-perfil-tutor/')) ?>">Mi perfil</a>
                             <a role="menuitem" href="<?= e(app_url('mis-materias/')) ?>">Mis materias</a>
+                        <?php elseif (Auth::isMgRole()): ?>
+                            <a role="menuitem" href="<?= e(app_url('mg/expedientes/')) ?>">Expedientes de grado</a>
                         <?php else: ?>
                             <a role="menuitem" href="<?= e(app_url('mis-tutorias/')) ?>">Mis tutorías</a>
                         <?php endif; ?>

@@ -92,6 +92,11 @@ services:
       - ./db/042_division_grupos.sql:/docker-entrypoint-initdb.d/042_division_grupos.sql:ro
       # 043: tipos de tutoria (nombre libre); un periodo activo por tipo, en paralelo.
       - ./db/043_tipos_tutoria.sql:/docker-entrypoint-initdb.d/043_tipos_tutoria.sql:ro
+      # 044-047: modulo Modalidades de Grado (docs/analisis/plan-mg-ajustado.md).
+      - ./db/044_mg_base.sql:/docker-entrypoint-initdb.d/044_mg_base.sql:ro
+      - ./db/045_mg_expedientes.sql:/docker-entrypoint-initdb.d/045_mg_expedientes.sql:ro
+      - ./db/046_mg_tutores_documentos.sql:/docker-entrypoint-initdb.d/046_mg_tutores_documentos.sql:ro
+      - ./db/047_mg_defensas.sql:/docker-entrypoint-initdb.d/047_mg_defensas.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s

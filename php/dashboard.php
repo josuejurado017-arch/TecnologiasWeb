@@ -2,6 +2,11 @@
 
 require dirname(__DIR__) . '/includes/bootstrap.php';
 Auth::requireLogin();
+// El equipo de Modalidades de Grado no opera tutorias: su inicio es el panel MG.
+if (Auth::isMgRole()) {
+    header('Location: ' . app_url('mg/'));
+    exit;
+}
 Auth::requireModule('dashboard');
 
 $user = Auth::user();

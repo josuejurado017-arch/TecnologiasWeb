@@ -1,0 +1,39 @@
+/* Documentos de Modalidades de Grado (cartas y citaciones): hoja A4 imprimible. */
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { background: #e9ecf1; color: #1b1f29; font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.55; margin: 0; }
+.doc-barra { align-items: center; background: #1b2033; color: #fff; display: flex; flex-wrap: wrap; font-family: system-ui, sans-serif; font-size: 0.9rem; gap: 1rem; padding: 0.75rem 1rem; position: sticky; top: 0; }
+.doc-barra button { background: #8275e8; border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; padding: 0.5rem 0.9rem; }
+.doc-barra a { color: #cfd6ff; }
+.doc-aviso { color: #f6d67a; white-space: pre-line; }
+.doc-hoja { background: #fff; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12); margin: 1.5rem auto; min-height: 297mm; padding: 22mm 20mm; position: relative; width: 210mm; max-width: calc(100% - 2rem); }
+.doc-encabezado { border-bottom: 2px solid #3a3f8f; display: flex; justify-content: space-between; margin-bottom: 1.5rem; padding-bottom: 0.5rem; font-size: 10pt; }
+.doc-pie { border-top: 1px solid #ccd; bottom: 12mm; color: #667; font-size: 8.5pt; left: 20mm; padding-top: 0.3rem; position: absolute; right: 20mm; }
+.doc-derecha { text-align: right; margin: 0.2rem 0; }
+.doc-ref { margin: 1.2rem 0; text-decoration: underline; }
+.doc-firma { border-top: 1px solid #333; margin: 4.5rem auto 0; max-width: 60%; padding-top: 0.4rem; text-align: center; }
+.doc-provisional { background: #fff3cd; border: 1px dashed #c69500; color: #7a5c00; font-family: system-ui, sans-serif; font-size: 9pt; margin: 0 0 1rem; padding: 0.3rem 0.6rem; text-align: center; }
+.doc-salto { break-after: page; height: 0; }
+.doc-salto + * { margin-top: 0; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border: 1px solid #99a; padding: 0.25rem 0.4rem; }
+
+@media screen and (max-width: 700px) {
+    .doc-hoja { min-height: auto; padding: 1.25rem; }
+    .doc-pie { position: static; margin-top: 2rem; }
+}
+
+@media print {
+    @page { size: A4; margin: 0; }
+    body { background: #fff; }
+    .doc-barra { display: none; }
+    .doc-hoja { box-shadow: none; margin: 0; max-width: none; break-after: page; }
+    .doc-hoja:last-child { break-after: auto; }
+}
+
+/* Reporte por estudiante (HU-032) */
+.doc-reporte { font-family: system-ui, sans-serif; font-size: 10pt; }
+.doc-reporte h1 { font-size: 16pt; margin: 0 0 0.75rem; }
+.doc-reporte h2 { border-bottom: 1px solid #ccd; font-size: 11.5pt; margin: 1.25rem 0 0.5rem; padding-bottom: 0.2rem; }
+.doc-reporte th { background: #f0f2f7; text-align: left; }
+.doc-nota { color: #667; font-size: 8.5pt; margin-top: 1.5rem; }
