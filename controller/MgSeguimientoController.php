@@ -155,6 +155,13 @@ final class MgSeguimientoController
                 $pdo->rollBack();
                 return [['La asignación del tutor cambió mientras registrabas.'], null];
             }
+            // Re-chequeo dentro de la transaccion: el choques() de mas arriba corrio antes del lock,
+            // asi que dos envios simultaneos podian pasar ambos la validacion y duplicar el horario.
+            $choques = $this->reuniones->choques($data['fecha'], $data['hora_inicio'], $data['hora_fin'], (int) $asignacion['id_tutor'], (int) $expediente['id_estudiante'], null);
+            if ($choques) {
+                $pdo->rollBack();
+                return [$choques, null];
+            }
             $id = $this->reuniones->crear($pdo, $data, $expedienteId, (int) $asignacion['id_asignacion'], $userId);
             $pdo->commit();
         } catch (Throwable $exception) {

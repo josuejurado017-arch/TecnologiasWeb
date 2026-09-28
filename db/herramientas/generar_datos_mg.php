@@ -165,16 +165,26 @@ foreach (q("SELECT t.id_tutor, u.id_usuario, CONCAT(u.nombre, ' ', u.apellido) A
             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario WHERE u.estado = 'activo' AND t.estado_docente = 'aprobado'")->fetchAll() as $d) {
     $docentes[(int) $d['id_tutor']] = $d;
 }
-// Afinidad por carrera (ids de tutores existentes). El primero de cada lista recibe mas tesistas.
-const POOL = [
-    1 => [2, 13, 3, 17, 4, 1],   // Ingenieria de Sistemas
-    2 => [7, 8, 12],             // Ingenieria Comercial
-    3 => [12, 8, 7],             // Administracion de Empresas
-    4 => [6, 15, 7],             // Contaduria Publica
-    5 => [9, 10],                // Derecho
-    6 => [11, 14, 19],           // Psicologia
-];
-const TRIBUNAL_EXTRA = [1, 7, 14, 12];
+// Afinidad por carrera calculada de los tutores realmente disponibles (los ids fijos
+// de antes solo existian en la base local original). El primero de cada lista recibe
+// mas tesistas; se rota la lista por carrera para no sobrecargar siempre al mismo.
+$idsDocentes = array_keys($docentes);
+$rotar = static function (array $a, int $n): array {
+    if (!$a) {
+        return $a;
+    }
+    $n = $n % count($a);
+    return array_merge(array_slice($a, $n), array_slice($a, 0, $n));
+};
+define('POOL', [
+    1 => $rotar($idsDocentes, 0), // Ingenieria de Sistemas
+    2 => $rotar($idsDocentes, 1), // Ingenieria Comercial
+    3 => $rotar($idsDocentes, 2), // Administracion de Empresas
+    4 => $rotar($idsDocentes, 3), // Contaduria Publica
+    5 => $rotar($idsDocentes, 4), // Derecho
+    6 => $rotar($idsDocentes, 5), // Psicologia
+]);
+define('TRIBUNAL_EXTRA', array_slice($idsDocentes, 0, min(4, count($idsDocentes))));
 
 function bit(string $accion, string $tabla, $id, ?array $antes, ?array $despues, string $fecha, int $userId): void
 {
@@ -453,7 +463,7 @@ function reuniones(int $exp, int $asig, int $tutor, int $estudiante, string $des
             'l' => $esVirtual ? 'https://teams.microsoft.com/l/meetup-join/19%3amg' . $exp . 'x' . $tutor : pick(['Cubículo docente, Bloque B', 'Sala de tutores, Bloque A', 'Biblioteca, sala de estudio 2']),
             't' => $tema, 'av' => $noEst ? null : pick(['Se corrigió la sección revisada.', 'Avance conforme a lo planificado.', 'Quedaron tareas para la próxima sesión.', 'Se revisaron las observaciones pendientes.']),
             'o' => $noEst ? 'El estudiante no asistió; se reprogramó el tema.' : null, 'ae' => $noEst ? 'no' : 'si', 'est' => $estado, 'mo' => $motivo,
-            'rp' => $docentes[$tutor]['id_usuario'], 'fr' => $f . ' ' . $horas[1] . ':' . sprintf('%02d', mt_rand(5, 50)) . ':00',
+            'rp' => $docentes[$tutor]['id_usuario'], 'fr' => $f . ' ' . $horas[1] . ':' . sprintf('%02d', mt_rand(5, 50)),
             'vp' => $antigua ? $coord : null, 'fv' => $antigua ? dt(dias($f, mt_rand(2, 5))) : null,
         ]);
         if ($estado === 'observada') {
