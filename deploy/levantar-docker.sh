@@ -35,7 +35,7 @@ fi
 
 echo ""
 echo ">> Listo. La app responde en:"
-echo "   http://localhost:${WEB_PORT:-80}/   (o http://tutorias.local/ si el DNS apunta aqui)"
+echo "   http://localhost:${WEB_PORT:-80}/   (o http://tutoriasupds.local/ si el DNS apunta aqui)"
 echo ">> Ver estado:   docker compose ps"
 echo ">> Ver logs:     docker compose logs -f web"
 echo ">> Detener:      docker compose down"

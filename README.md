@@ -121,15 +121,15 @@ La raiz del repositorio se ubicara en:
 La configuracion incluida en `deploy/apache/tecnologiasweb.conf` publica el proyecto mediante el dominio local y mantiene protegidos los controladores, modelos, vistas, scripts SQL y el archivo `.env`. La aplicacion se abre en:
 
 ```text
-http://tutorias.local/
+http://tutoriasupds.local/
 ```
 
 Instalar la configuracion despues de clonar el repositorio:
 
 ```bash
-sudo cp deploy/apache/tecnologiasweb.conf /etc/apache2/sites-available/tutorias.local.conf
+sudo cp deploy/apache/tecnologiasweb.conf /etc/apache2/sites-available/tutoriasupds.local.conf
 sudo a2enmod rewrite
-sudo a2ensite tutorias.local
+sudo a2ensite tutoriasupds.local
 sudo a2dissite 000-default
 sudo apache2ctl configtest
 sudo systemctl reload apache2
@@ -156,7 +156,7 @@ En Ubuntu la base local escucha en `3306`, por lo que el `.env` del servidor deb
 
 ```dotenv
 APP_ENV=production
-APP_URL=http://tutorias.local
+APP_URL=http://tutoriasupds.local
 DB_HOST=127.0.0.1
 DB_PORT=3306
 ```
@@ -210,7 +210,7 @@ DB_NAME=testdb_audit php tests/escenarios.php
 
 ## Docker (recomendado para el servidor)
 
-`compose.yaml` levanta la aplicacion (Apache + PHP 8.2, imagen construida desde `Dockerfile`) y MySQL 8.4 con un volumen persistente. Reemplaza al Apache y MySQL instalados en el host; BIND9 sigue en el host resolviendo `tutorias.local` hacia la IP del servidor.
+`compose.yaml` levanta la aplicacion (Apache + PHP 8.2, imagen construida desde `Dockerfile`) y MySQL 8.4 con un volumen persistente. Reemplaza al Apache y MySQL instalados en el host; BIND9 sigue en el host resolviendo `tutoriasupds.local` hacia la IP del servidor.
 
 Requisitos en Ubuntu:
 
@@ -219,7 +219,7 @@ sudo apt install -y docker.io docker-compose-v2
 sudo usermod -aG docker "$USER"   # cerrar sesion y volver a entrar
 ```
 
-Configuracion: el mismo `.env` de la raiz alimenta a Compose. Copiar `.env.example` y definir `DB_PASSWORD` y `MYSQL_ROOT_PASSWORD`; `DB_HOST` y `DB_PORT` se ignoran porque Compose apunta al servicio `db`. `APP_URL` dentro del contenedor queda vacio (enlaces relativos), asi el sitio responde igual por `http://tutorias.local/`, por IP o por `http://localhost:8080/` en desarrollo.
+Configuracion: el mismo `.env` de la raiz alimenta a Compose. Copiar `.env.example` y definir `DB_PASSWORD` y `MYSQL_ROOT_PASSWORD`; `DB_HOST` y `DB_PORT` se ignoran porque Compose apunta al servicio `db`. `APP_URL` dentro del contenedor queda vacio (enlaces relativos), asi el sitio responde igual por `http://tutoriasupds.local/`, por IP o por `http://localhost:8080/` en desarrollo.
 
 Primer arranque (aplica automaticamente todas las migraciones de esquema al crear el volumen: 001-006, 008-026, 028-035, 037, 039-048; ver los comentarios de `compose.yaml` para el detalle de por que 007, 027, 036 y 038 quedan fuera):
 

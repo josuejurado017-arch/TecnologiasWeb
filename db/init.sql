@@ -166,7 +166,7 @@ WHERE c.nombre_carrera = 'Ingenieria de Sistemas'
 -- Generar el hash en el servidor y reemplazar HASH_REAL antes de ejecutar:
 -- php -r "echo password_hash('cambiar-esta-clave', PASSWORD_DEFAULT), PHP_EOL;"
 -- INSERT INTO usuarios (id_rol, nombre, apellido, correo, usuario, contrasena_hash)
--- SELECT r.id_rol, 'Admin', 'Sistema', 'admin@tutorias.local', 'admin', 'HASH_REAL'
+-- SELECT r.id_rol, 'Admin', 'Sistema', 'admin@tutoriasupds.local', 'admin', 'HASH_REAL'
 -- FROM roles r
 -- WHERE r.nombre_rol = 'administrador'
 --   AND NOT EXISTS (SELECT 1 FROM usuarios WHERE usuario = 'admin');

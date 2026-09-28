@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libzip-dev \
 COPY deploy/docker/php.ini /usr/local/etc/php/conf.d/99-tutorias.ini
 COPY deploy/docker/apache-vhost.conf /etc/apache2/sites-available/tutorias.conf
 RUN a2ensite tutorias \
-    && printf 'ServerName tutorias.local\n' > /etc/apache2/conf-available/servername.conf \
+    && printf 'ServerName tutoriasupds.local\n' > /etc/apache2/conf-available/servername.conf \
     && a2enconf servername
 
 WORKDIR /var/www/html/TecnologiasWeb

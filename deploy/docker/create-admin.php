@@ -21,7 +21,7 @@ if (strlen($password) < 8) {
     fwrite(STDERR, "La clave debe tener al menos 8 caracteres.\n");
     exit(1);
 }
-$email = $email ?? $username . '@tutorias.local';
+$email = $email ?? $username . '@tutoriasupds.local';
 
 $pdo = Database::connection();
 $roleId = $pdo->query("SELECT id_rol FROM roles WHERE nombre_rol = 'administrador' LIMIT 1")->fetchColumn();
