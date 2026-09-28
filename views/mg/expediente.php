@@ -24,7 +24,7 @@
 
     <div class="mg-grid">
         <section class="card" id="tutor">
-            <div class="section-heading"><div><span class="eyebrow">HU-025/026</span><h2>Tutor</h2></div>
+            <div class="section-heading"><div><span class="eyebrow">Acompañamiento</span><h2>Tutor</h2></div>
                 <?php if (Auth::canDo('mg.tutor') && $activo && (int) $expediente['requiere_tutor'] === 1): ?><a class="button small" href="<?= e(app_url('mg/expedientes/tutor.php?id=' . (int) $expediente['id_expediente'])) ?>"><?= $tutorVigente ? 'Cambiar tutor' : 'Asignar tutor' ?></a><?php endif; ?>
             </div>
             <?php if ((int) $expediente['requiere_tutor'] !== 1): ?>
@@ -48,7 +48,7 @@
         </section>
 
         <section class="card" id="tribunales">
-            <div class="section-heading"><div><span class="eyebrow">HU-028</span><h2>Tribunales</h2></div>
+            <div class="section-heading"><div><span class="eyebrow">Evaluadores</span><h2>Tribunales</h2></div>
                 <?php if (Auth::canDo('mg.tribunal') && $enDefensa): ?><a class="button small" href="<?= e(app_url('mg/expedientes/tribunales.php?id=' . (int) $expediente['id_expediente'] . '&etapa=' . e($expediente['etapa_actual']))) ?>">Tribunales de <?= e(MgTribunal::ETAPAS[$expediente['etapa_actual']]) ?></a><?php endif; ?>
             </div>
             <?php foreach ($tribunales as $etapa => $lista): ?>
@@ -67,7 +67,7 @@
     </div>
 
     <section class="card mg-seccion">
-        <div class="section-heading"><div><span class="eyebrow">HU-029/030/031</span><h2>Defensas y notas</h2></div>
+        <div class="section-heading"><div><span class="eyebrow">Evaluación</span><h2>Defensas y notas</h2></div>
             <?php if (Auth::canDo('mg.defensa') && $enDefensa && !$hayProgramada): ?><a class="button small" href="<?= e(app_url('mg/defensas/programar.php?expediente=' . (int) $expediente['id_expediente'])) ?>">Programar defensa de <?= e(MgTribunal::ETAPAS[$expediente['etapa_actual']]) ?></a><?php endif; ?>
         </div>
         <?php if ($notas): ?>
@@ -118,7 +118,7 @@
     </section>
 
     <section class="card mg-seccion" id="documentos">
-        <div class="section-heading"><div><span class="eyebrow">HU-027/030</span><h2>Documentos emitidos</h2></div></div>
+        <div class="section-heading"><div><span class="eyebrow">Cartas y citaciones</span><h2>Documentos emitidos</h2></div></div>
         <?php if (!$documentos): ?>
             <p class="empty-state">Aún no se emitieron cartas ni citaciones.</p>
         <?php else: ?>
@@ -133,7 +133,7 @@
 
     <div class="mg-grid">
         <section class="card" id="estado">
-            <div class="section-heading"><div><span class="eyebrow">HU-024</span><h2>Estado y etapa</h2></div></div>
+            <div class="section-heading"><div><span class="eyebrow">Proceso</span><h2>Estado y etapa</h2></div></div>
             <?php if (Auth::canDo('mg.expediente')): ?>
                 <?php if ($activo && in_array($expediente['etapa_actual'], ['previa', 'mg1'], true)): ?>
                     <form method="post" action="<?= e(app_url('mg/expedientes/accion.php')) ?>" class="mg-bloque">
@@ -192,7 +192,7 @@
     </div>
 
     <section class="card mg-seccion" id="seguimiento">
-        <div class="section-heading"><div><span class="eyebrow">HU-034/037/038</span><h2>Reuniones, informes y alertas</h2></div>
+        <div class="section-heading"><div><span class="eyebrow">Seguimiento</span><h2>Reuniones, informes y alertas</h2></div>
             <a class="button small" href="<?= e(app_url('mg/seguimiento.php?expediente=' . (int) $expediente['id_expediente'])) ?>">Ver seguimiento</a></div>
         <p>Reuniones: <strong><?= (int) ($resumenReuniones['total'] ?? 0) ?></strong> (<?= (int) ($resumenReuniones['validadas'] ?? 0) ?> validadas, <?= (int) ($resumenReuniones['por_validar'] ?? 0) ?> por validar, <?= (int) ($resumenReuniones['observadas'] ?? 0) ?> observadas) · última: <?= e(mg_fecha_corta($resumenReuniones['ultima'] ?? null)) ?>
             · Inasistencias del estudiante: <?= (int) ($resumenReuniones['faltas_estudiante'] ?? 0) ?></p>

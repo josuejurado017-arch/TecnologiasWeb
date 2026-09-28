@@ -45,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (count($selected) > 1) {
                 $errors[] = 'Solo puedes llevar una tutoría por período: elige una sola materia.';
             } else {
-                $results = $controller->solicitarApoyo($studentId, $selected, $periodo);
+                // Si la materia tiene varios grupos, el estudiante puede elegir uno (grupo_<materia>).
+                $grupoElegido = (int) filter_var($_POST['grupo_' . $selected[0]] ?? 0, FILTER_VALIDATE_INT);
+                $results = $controller->solicitarApoyo($studentId, $selected, $periodo, $grupoElegido > 0 ? $grupoElegido : null);
             }
         }
     }

@@ -30,11 +30,11 @@ final class Evaluacion
         return $statement->fetchAll();
     }
 
-    /** Evaluaciones ya emitidas por el estudiante en la campana. */
-    public function doneForStudent(int $studentId, int $periodoId): array
+    /** Evaluaciones ya emitidas por el estudiante en la campana, o en todas si $periodoId es null. */
+    public function doneForStudent(int $studentId, ?int $periodoId): array
     {
         $statement = Database::connection()->prepare(
-            "SELECT m.nombre_materia, CONCAT(u.nombre, ' ', u.apellido) AS tutor,
+            "SELECT m.nombre_materia, CONCAT(u.nombre, ' ', u.apellido) AS tutor, p.nombre AS periodo,
                     e.calificacion_general, e.puntualidad, e.dominio, e.claridad, e.utilidad, e.comentario
              FROM evaluaciones_grupo e
              INNER JOIN inscripciones i ON i.id_inscripcion = e.id_inscripcion
@@ -42,10 +42,11 @@ final class Evaluacion
              INNER JOIN materias m ON m.id_materia = g.id_materia
              INNER JOIN tutores t ON t.id_tutor = g.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
-             WHERE i.id_estudiante = :id_estudiante AND g.id_periodo = :id_periodo
+             INNER JOIN periodos p ON p.id_periodo = g.id_periodo
+             WHERE i.id_estudiante = :id_estudiante AND (:id_periodo IS NULL OR g.id_periodo = :id_periodo2)
              ORDER BY e.fecha_evaluacion DESC"
         );
-        $statement->execute(['id_estudiante' => $studentId, 'id_periodo' => $periodoId]);
+        $statement->execute(['id_estudiante' => $studentId, 'id_periodo' => $periodoId, 'id_periodo2' => $periodoId]);
 
         return $statement->fetchAll();
     }

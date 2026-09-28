@@ -10,10 +10,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verify_csrf_token($_POST['csrf_tok
 }
 
 $user = Auth::user();
-$error = (new TutorPortalController())->saveMateriaConfig((int) $user['id_usuario'], $_POST);
+$controller = new TutorPortalController();
+$error = $controller->saveMateriaConfig((int) $user['id_usuario'], $_POST);
 $materiaId = (int) ($_POST['id_materia'] ?? 0);
 $query = $error
     ? '?error=' . rawurlencode($error) . '&materia=' . $materiaId
-    : '?message=subject-configured';
+    : '?message=' . ($controller->sinCambios ? 'subject-unchanged' : 'subject-configured');
 header('Location: ' . app_url('mis-materias/' . $query . '#materia-' . $materiaId));
 exit;

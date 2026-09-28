@@ -40,10 +40,11 @@
             <h2>Evaluaciones realizadas</h2>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>Materia</th><th>Tutor</th><th>General</th><th>Punt.</th><th>Dominio</th><th>Claridad</th><th>Utilidad</th></tr></thead>
+                    <thead><tr><th>Período</th><th>Materia</th><th>Tutor</th><th>General</th><th>Punt.</th><th>Dominio</th><th>Claridad</th><th>Utilidad</th></tr></thead>
                     <tbody>
                         <?php foreach ($realizadas as $r): ?>
                             <tr>
+                                <td><?= e($r['periodo']) ?></td>
                                 <td><?= e($r['nombre_materia']) ?></td>
                                 <td><?= e($r['tutor']) ?></td>
                                 <td><?= (int) $r['calificacion_general'] ?>/5</td>
@@ -53,7 +54,7 @@
                                 <td><?= (int) $r['utilidad'] ?></td>
                             </tr>
                         <?php endforeach; ?>
-                        <?php if (!$realizadas): ?><tr><td colspan="7" class="empty-state">Aún no has evaluado ninguna tutoría.</td></tr><?php endif; ?>
+                        <?php if (!$realizadas): ?><tr><td colspan="8" class="empty-state">Aún no has evaluado ninguna tutoría.</td></tr><?php endif; ?>
                     </tbody>
                 </table>
             </div>

@@ -19,11 +19,12 @@ $plazos = [];
 foreach ($studentId ? $periodosEvaluables : [] as $p) {
     $pend = $controller->pending($studentId, (int) $p['id_periodo']);
     $pendientes = array_merge($pendientes, $pend);
-    $realizadas = array_merge($realizadas, $controller->done($studentId, (int) $p['id_periodo']));
     if ($pend && $p['estado'] === 'cerrada') {
         $plazos[] = ['nombre' => $p['nombre'], 'hasta' => $p['evaluaciones_hasta']];
     }
 }
+// Realizadas: todas las que emitio, de cualquier periodo (historial).
+$realizadas = $studentId ? $controller->done($studentId) : [];
 $message = ($_GET['message'] ?? '') === 'saved' ? 'Evaluacion registrada. Gracias por tu opinion.' : null;
 
 require dirname(__DIR__, 2) . '/views/evaluaciones/mis.php';

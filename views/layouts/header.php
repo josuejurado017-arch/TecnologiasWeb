@@ -56,7 +56,7 @@ if ($isAuthenticated) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?></title>
-    <link rel="stylesheet" href="<?= e(app_url('Front/assets/css/upds.css')) ?>">
+    <link rel="stylesheet" href="<?= e(app_url('Front/assets/css/upds.css') . '?v=' . @filemtime(dirname(__DIR__, 2) . '/Front/assets/css/upds.css')) ?>">
     <script>(function(){try{var theme=localStorage.getItem('upds-theme');if(theme==='light'||theme==='dark'){document.documentElement.dataset.theme=theme;}}catch(error){}})();</script>
 </head>
 <body class="<?= $isAuthenticated ? 'app-body' : 'auth-body' ?>">

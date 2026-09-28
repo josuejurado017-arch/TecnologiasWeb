@@ -10,15 +10,24 @@ $activePage = 'grupos';
 $estadosFiltro = ['listo', 'formacion', 'confirmado', 'en_curso', 'finalizado', 'cancelado', 'sin_ubicacion', 'por_aprobar'];
 $filtro = in_array($_GET['estado'] ?? '', $estadosFiltro, true) ? $_GET['estado'] : null;
 
+// Busqueda y filtros de la tabla (se combinan con la etapa).
+$busqueda = [
+    'q' => mb_substr(trim((string) ($_GET['q'] ?? '')), 0, 80),
+    'turno' => isset(TutorMateriaConfig::TURNOS[$_GET['turno'] ?? '']) ? (string) $_GET['turno'] : '',
+    'modalidad' => in_array($_GET['modalidad'] ?? '', ['presencial', 'virtual'], true) ? (string) $_GET['modalidad'] : '',
+    'orden' => ($_GET['orden'] ?? '') === 'recientes' ? 'recientes' : '',
+];
+$hayBusqueda = $busqueda['q'] !== '' || $busqueda['turno'] !== '' || $busqueda['modalidad'] !== '' || $busqueda['orden'] !== '';
+
 $periodo = (new Periodo())->activa();
 $modelo = new Grupo();
 if ($periodo && $filtro === 'por_aprobar') {
     $grupos = array_merge(
-        $modelo->allByPeriodo((int) $periodo['id_periodo'], 'listo'),
-        $modelo->allByPeriodo((int) $periodo['id_periodo'], 'formacion')
+        $modelo->allByPeriodo((int) $periodo['id_periodo'], 'listo', $busqueda),
+        $modelo->allByPeriodo((int) $periodo['id_periodo'], 'formacion', $busqueda)
     );
 } else {
-    $grupos = $periodo ? $modelo->allByPeriodo((int) $periodo['id_periodo'], $filtro) : [];
+    $grupos = $periodo ? $modelo->allByPeriodo((int) $periodo['id_periodo'], $filtro, $busqueda) : [];
 }
 $etapas = $periodo ? $modelo->contarPorEtapa((int) $periodo['id_periodo']) : [];
 $sinUbicacion = $modelo->countSinUbicacion();

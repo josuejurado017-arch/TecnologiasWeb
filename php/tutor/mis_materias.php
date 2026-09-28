@@ -17,7 +17,8 @@ $hasSchedule = array_filter($subjects, static fn (array $s): bool => $s['config'
 $messages = [
     'subject-added' => 'Materia agregada correctamente.',
     'subject-removed' => 'Materia quitada correctamente.',
-    'subject-configured' => 'Configuración guardada. La coordinación la revisará antes de que el sistema te proponga grupos en esa materia.',
+    'subject-unchanged' => 'Sin cambios: tu oferta sigue como estaba.',
+    'subject-configured' =>'Configuración guardada. La coordinación la revisará antes de que el sistema te proponga grupos en esa materia.',
     'propuesta-aceptada' => 'Aceptaste la materia. El sistema ya puede formar grupos con los estudiantes en espera.',
     'propuesta-rechazada' => 'Rechazaste la propuesta. Se avisó a la coordinación.',
 ];

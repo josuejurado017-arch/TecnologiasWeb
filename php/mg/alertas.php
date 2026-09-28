@@ -84,7 +84,7 @@ require dirname(__DIR__, 2) . '/views/layouts/header.php';
             <thead><tr><th>Severidad</th><th>Alerta</th><th>Estudiante</th><th>Detalle</th><th>Atención</th></tr></thead>
             <tbody>
                 <?php foreach ($alertas as $alerta): ?>
-                    <tr>
+                    <tr class="mg-alerta-fila is-<?= e($alerta['severidad']) ?>">
                         <td><?= MgAlerta::badge($alerta['severidad']) ?></td>
                         <td><strong><?= e($alerta['codigo']) ?></strong> · <?= e($alerta['titulo']) ?></td>
                         <td><?php if ($alerta['estudiante']): ?><a href="<?= e(app_url($alerta['url'])) ?>"><?= e($alerta['estudiante']) ?></a><?php else: ?><a href="<?= e(app_url($alerta['url'])) ?>">Ver tesistas</a><?php endif; ?></td>

@@ -8,6 +8,12 @@ final class TutorPortalController
     private Tutor $tutores;
     private TutorMateriaConfig $config;
 
+    /** Una oferta aprobada ya no la cambia el tutor: la edita la coordinacion (Ofertas de materias). */
+    public const OFERTA_BLOQUEADA = 'Esta oferta ya fue aprobada por la coordinación y está bloqueada. Para cambiar turnos, modalidad o cupo, pídeselo a la coordinación.';
+
+    /** true si el ultimo saveMateriaConfig no tenia cambios (la oferta quedo como estaba). */
+    public bool $sinCambios = false;
+
     public function __construct()
     {
         $this->model = new TutorPortal();
@@ -56,6 +62,7 @@ final class TutorPortalController
                 'motivo_rechazo' => null,
             ];
             $subject['cobertura'] = $this->config->coberturaMateria($materiaId);
+            $subject['turnos_info'] = $tutorId !== null ? $this->config->turnosDisponibles($tutorId, $materiaId) : ['max' => 0, 'bloqueados' => []];
         }
         unset($subject);
 
@@ -89,6 +96,9 @@ final class TutorPortalController
         $misMaterias = array_map(static fn (array $s): int => (int) $s['id_materia'], $this->model->subjects($userId));
         if (!in_array($materiaId, $misMaterias, true)) {
             return 'Esa materia no está asignada a tu perfil.';
+        }
+        if (($this->config->find($tutorId, $materiaId)['estado'] ?? null) === 'aprobado') {
+            return self::OFERTA_BLOQUEADA;
         }
 
         $modalidad = is_string($input['modalidad'] ?? null) ? $input['modalidad'] : '';
@@ -130,6 +140,10 @@ final class TutorPortalController
         } catch (Throwable $exception) {
             error_log($exception->getMessage());
             return 'No fue posible guardar la configuración.';
+        }
+        if ($historialId === TutorMateriaConfig::SIN_CAMBIOS) {
+            $this->sinCambios = true;
+            return null;
         }
 
         // La oferta queda pendiente (TutorMateriaConfig::save): el reproceso no
@@ -210,7 +224,8 @@ final class TutorPortalController
         if ($subjectId === false || $subjectId < 1) {
             return 'Materia no válida.';
         }
-
+        // Quitar si se permite con la oferta aprobada, mientras no tenga grupos vigentes
+        // (esa regla la aplica TutorPortal::removeSubject): editarla es lo bloqueado.
         try {
             $this->model->removeSubject($userId, $subjectId);
         } catch (RuntimeException $exception) {

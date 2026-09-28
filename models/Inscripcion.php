@@ -62,6 +62,37 @@ final class Inscripcion
         return $statement->fetchAll();
     }
 
+    /**
+     * Tutorias de periodos anteriores al indicado (historial del estudiante), con
+     * su asistencia (asistio/retraso/parcial cuentan como presente) y si evaluo.
+     */
+    public function historyForStudent(int $studentId, ?int $excluirPeriodoId): array
+    {
+        $statement = Database::connection()->prepare(
+            "SELECT i.id_inscripcion, i.estado AS estado_inscripcion, g.estado AS estado_grupo, g.hora_inicio, g.hora_fin,
+                    g.modalidad, m.nombre_materia, CONCAT(u.nombre, ' ', u.apellido) AS tutor,
+                    p.nombre AS periodo, p.fecha_inicio,
+                    (SELECT GROUP_CONCAT(gd.dia_semana ORDER BY FIELD(gd.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado') SEPARATOR '/')
+                       FROM grupo_dias gd WHERE gd.id_grupo = g.id_grupo) AS dias,
+                    (SELECT COUNT(*) FROM asistencias_sesion a WHERE a.id_inscripcion = i.id_inscripcion) AS sesiones,
+                    (SELECT COUNT(*) FROM asistencias_sesion a WHERE a.id_inscripcion = i.id_inscripcion AND a.estado IN ('asistio','retraso','parcial')) AS presentes,
+                    ev.calificacion_general
+             FROM inscripciones i
+             INNER JOIN grupos_tutoria g ON g.id_grupo = i.id_grupo
+             INNER JOIN periodos p ON p.id_periodo = g.id_periodo
+             INNER JOIN materias m ON m.id_materia = g.id_materia
+             INNER JOIN tutores t ON t.id_tutor = g.id_tutor
+             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             LEFT JOIN evaluaciones_grupo ev ON ev.id_inscripcion = i.id_inscripcion
+             WHERE i.id_estudiante = :id_estudiante AND (:excluir IS NULL OR g.id_periodo <> :excluir2)
+               AND i.estado <> 'trasladada'
+             ORDER BY p.fecha_inicio DESC, m.nombre_materia"
+        );
+        $statement->execute(['id_estudiante' => $studentId, 'excluir' => $excluirPeriodoId, 'excluir2' => $excluirPeriodoId]);
+
+        return $statement->fetchAll();
+    }
+
     /** Estudiantes inscritos en un grupo (para el tutor). */
     public function forGroup(int $grupoId): array
     {
@@ -137,6 +168,29 @@ final class Inscripcion
      * Estudiantes activos que coinciden con un texto (nombre, apellido, usuario o
      * registro universitario), para inscribir a mano desde Revisar grupo.
      */
+    /**
+     * Sugeridos para inscribir a mano sin escribir nada: estudiantes activos de la
+     * carrera de la materia que aun no tienen tutoria en el periodo.
+     */
+    public function sugeridosParaMateria(int $materiaId, int $periodoId, int $limite = 15): array
+    {
+        $statement = Database::connection()->prepare(
+            "SELECT e.id_estudiante, u.id_usuario, CONCAT(u.nombre, ' ', u.apellido) AS estudiante, u.usuario,
+                    e.registro_universitario, e.semestre, c.nombre_carrera
+             FROM estudiantes e
+             INNER JOIN usuarios u ON u.id_usuario = e.id_usuario AND u.estado = 'activo'
+             INNER JOIN materias m ON m.id_materia = :materia AND m.id_carrera = e.id_carrera
+             LEFT JOIN carreras c ON c.id_carrera = e.id_carrera
+             WHERE NOT EXISTS (SELECT 1 FROM inscripciones i INNER JOIN grupos_tutoria g ON g.id_grupo = i.id_grupo
+                               WHERE i.id_estudiante = e.id_estudiante AND i.estado = 'inscrito' AND g.id_periodo = :periodo)
+             ORDER BY u.apellido, u.nombre
+             LIMIT " . max(1, min(50, $limite))
+        );
+        $statement->execute(['materia' => $materiaId, 'periodo' => $periodoId]);
+
+        return $statement->fetchAll();
+    }
+
     public function buscarEstudiantes(string $texto, int $limite = 10): array
     {
         $statement = Database::connection()->prepare(

@@ -75,8 +75,7 @@ final class Auth
         self::requireLogin();
 
         if ((self::user()['nombre_rol'] ?? null) !== $role) {
-            http_response_code(403);
-            exit('No tiene permisos para acceder a esta pagina.');
+            self::denegar('No tienes permisos para acceder a esta página.');
         }
     }
 
@@ -85,8 +84,7 @@ final class Auth
         self::requireLogin();
 
         if (!in_array(self::user()['nombre_rol'] ?? null, $roles, true)) {
-            http_response_code(403);
-            exit('No tiene permisos para acceder a esta pagina.');
+            self::denegar('No tienes permisos para acceder a esta página.');
         }
     }
 
@@ -120,8 +118,7 @@ final class Auth
         self::requireLogin();
 
         if (!self::can($module)) {
-            http_response_code(403);
-            exit('No tiene permisos para acceder a este modulo.');
+            self::denegar('No tienes permisos para acceder a este módulo.');
         }
     }
 
@@ -168,9 +165,36 @@ final class Auth
         self::requireLogin();
 
         if (!self::canDo($action)) {
-            http_response_code(403);
-            exit('No tiene permisos para realizar esta accion.');
+            self::denegar('No tienes permisos para realizar esta acción.');
         }
+    }
+
+    /**
+     * Respuesta 403 con una pagina clara en vez de texto plano. El caso mas comun:
+     * se inicio sesion con otra cuenta en otra pestana del mismo navegador (la
+     * sesion es una sola por navegador) y al volver atras la pagina es de otro rol.
+     */
+    public static function denegar(string $mensaje): never
+    {
+        http_response_code(403);
+        $user = self::user() ?? [];
+        $roles = ['administrador' => 'Administrador', 'tutor' => 'Tutor', 'estudiante' => 'Estudiante',
+            'coordinador_mg' => 'Coordinación de Modalidades de Grado', 'auxiliar_mg' => 'Auxiliar de Modalidades de Grado'];
+        $nombre = trim(($user['nombre'] ?? '') . ' ' . ($user['apellido'] ?? ''));
+        $rol = $roles[$user['nombre_rol'] ?? ''] ?? ($user['nombre_rol'] ?? '');
+        $inicio = app_url(self::isMgRole() ? 'mg/' : 'dashboard.php');
+        $css = app_url('Front/assets/css/upds.css');
+        echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Sin permiso</title><link rel="stylesheet" href="' . e($css) . '"></head><body>'
+            . '<main class="container" style="max-width:40rem;margin:4rem auto;padding:0 1rem;"><div class="card" style="padding:1.5rem;">'
+            . '<h1>Sin permiso</h1><p>' . e($mensaje) . '</p>'
+            . ($nombre !== '' ? '<p>Estás con la sesión de <strong>' . e($nombre) . '</strong> (' . e($rol) . ').</p>' : '')
+            . '<p class="panel-note">Si iniciaste sesión con otra cuenta en otra pestaña de este navegador, esa sesión reemplazó a la anterior en todas las pestañas.'
+            . ' Para usar dos cuentas a la vez, abre la otra en una ventana de incógnito o en otro navegador.</p>'
+            . '<p style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem;"><a class="button" href="' . e($inicio) . '">Ir a mi inicio</a>'
+            . '<a class="button secondary" href="' . e(app_url('logout.php')) . '">Cambiar de usuario</a></p>'
+            . '</div></main></body></html>';
+        exit;
     }
 
     public static function isMgRole(): bool

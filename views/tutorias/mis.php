@@ -85,6 +85,41 @@
             </div>
         <?php endif; ?>
     <?php endif; ?>
+
+    <?php if ($historial): ?>
+        <h2 style="margin-top:2rem;">Historial</h2>
+        <p class="panel-note">Tutorías de otros períodos, con tu asistencia y tu evaluación del tutor.</p>
+        <div class="table-wrapper card">
+            <table>
+                <thead><tr><th>Período</th><th>Materia</th><th>Tutor</th><th>Horario</th><th>Asistencia</th><th>Tu evaluación</th><th>Estado</th></tr></thead>
+                <tbody>
+                    <?php foreach ($historial as $h): ?>
+                        <tr>
+                            <td><?= e($h['periodo']) ?></td>
+                            <td><?= e($h['nombre_materia']) ?></td>
+                            <td><?= e($h['tutor']) ?></td>
+                            <td><?= e($h['dias'] ?: '—') ?> · <?= e(substr((string) $h['hora_inicio'], 0, 5)) ?> - <?= e(substr((string) $h['hora_fin'], 0, 5)) ?></td>
+                            <td>
+                                <?php if ((int) $h['sesiones'] > 0): ?>
+                                    <?= (int) $h['presentes'] ?>/<?= (int) $h['sesiones'] ?> sesiones
+                                    <small>(<?= (int) round(100 * (int) $h['presentes'] / (int) $h['sesiones']) ?>%)</small>
+                                <?php else: ?>
+                                    Sin registro
+                                <?php endif; ?>
+                            </td>
+                            <td><?= $h['calificacion_general'] !== null ? (int) $h['calificacion_general'] . '/5' : '<small>No evaluó</small>' ?></td>
+                            <td>
+                                <?= e(ucfirst(str_replace('_', ' ', (string) $h['estado_grupo']))) ?>
+                                <?php if ($h['estado_inscripcion'] !== 'inscrito'): ?>
+                                    <span class="badge badge-<?= e($h['estado_inscripcion']) ?>">Tu inscripción: <?= e(str_replace('_', ' ', (string) $h['estado_inscripcion'])) ?></span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
 </main>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

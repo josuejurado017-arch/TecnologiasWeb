@@ -27,5 +27,7 @@ foreach ($enEspera as &$m) {
         : null;
 }
 unset($m);
+// Historial: tutorias de periodos anteriores (cerrados o de otro tipo de tutoria).
+$historial = $studentId ? (new Inscripcion())->historyForStudent($studentId, $periodo ? (int) $periodo['id_periodo'] : null) : [];
 
 require dirname(__DIR__, 2) . '/views/tutorias/mis.php';

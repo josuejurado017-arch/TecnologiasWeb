@@ -19,7 +19,7 @@ final class EvaluacionGrupoController
         return $this->model->pendingForStudent($studentId, $periodoId);
     }
 
-    public function done(int $studentId, int $periodoId): array
+    public function done(int $studentId, ?int $periodoId = null): array
     {
         return $this->model->doneForStudent($studentId, $periodoId);
     }

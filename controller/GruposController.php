@@ -813,15 +813,24 @@ final class GruposController
         }
         $busqueda = trim($busqueda);
         if (mb_strlen($busqueda) >= 2) {
-            foreach ($this->inscripciones->buscarEstudiantes($busqueda) as $est) {
+            foreach ($this->inscripciones->buscarEstudiantes($busqueda, 20) as $est) {
                 $candidatos[(int) $est['id_estudiante']] ??= $est + ['origen' => 'busqueda', 'desde' => null];
+            }
+        } else {
+            // Sin busqueda: sugerir estudiantes de la carrera de la materia sin tutoria en el periodo.
+            foreach ($this->inscripciones->sugeridosParaMateria((int) $grupo['id_materia'], (int) $grupo['id_periodo'], 40) as $est) {
+                $candidatos[(int) $est['id_estudiante']] ??= $est + ['origen' => 'sugerido', 'desde' => null];
             }
         }
         foreach ($candidatos as $id => $est) {
             $candidatos[$id] += $this->evaluarInscripcion($grupo, $id);
+            // Los sugeridos que no pueden entrar no se muestran: solo meten ruido.
+            if ($est['origen'] === 'sugerido' && $candidatos[$id]['bloqueo'] !== null) {
+                unset($candidatos[$id]);
+            }
         }
 
-        return array_values($candidatos);
+        return array_slice(array_values($candidatos), 0, 30);
     }
 
     /** La coordinacion inscribe a un estudiante en un grupo vigente con cupo. */

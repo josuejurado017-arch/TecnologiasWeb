@@ -199,12 +199,94 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.materia-form').forEach((form) => {
         const turnos = [...form.querySelectorAll('input[name="turnos[]"]')];
         if (!turnos.length) return;
+        const campo = form.querySelector('[data-max-turnos]');
+        const max = campo ? Number(campo.dataset.maxTurnos) : turnos.length;
         const sync = () => {
-            const alguno = turnos.some((turno) => turno.checked);
-            turnos[0].setCustomValidity(alguno ? '' : 'Selecciona al menos un turno.');
+            const marcados = turnos.filter((turno) => turno.checked).length;
+            turnos[0].setCustomValidity(marcados > 0 ? '' : 'Selecciona al menos un turno.');
+            // Tope de turnos del periodo: al llegar, los demas turnos libres se bloquean.
+            turnos.forEach((turno) => {
+                if (turno.hasAttribute('data-bloqueado')) return;
+                turno.disabled = !turno.checked && marcados >= max;
+                turno.closest('.chip')?.classList.toggle('chip-al-tope', turno.disabled);
+            });
         };
         turnos.forEach((turno) => turno.addEventListener('change', sync));
         sync();
+    });
+
+    // Pestanas (Seguimiento MG): sin JS se ven todas las secciones; con JS una a la vez.
+    // Respeta el #ancla de la URL (#reuniones, #informes...) para los enlaces de otras paginas.
+    document.querySelectorAll('[data-tabs]').forEach((tabs) => {
+        const botones = [...tabs.querySelectorAll('[data-tab]')];
+        const paneles = [...tabs.querySelectorAll('[data-panel]')];
+        if (!botones.length) return;
+        const mostrar = (nombre, actualizarUrl) => {
+            if (!paneles.some((p) => p.dataset.panel === nombre)) nombre = botones[0].dataset.tab;
+            paneles.forEach((p) => { p.hidden = p.dataset.panel !== nombre; });
+            botones.forEach((b) => { const activo = b.dataset.tab === nombre; b.setAttribute('aria-selected', activo ? 'true' : 'false'); b.classList.toggle('is-activo', activo); });
+            if (actualizarUrl) history.replaceState(null, '', `#${nombre}`);
+        };
+        botones.forEach((b) => b.addEventListener('click', () => mostrar(b.dataset.tab, true)));
+        mostrar(location.hash.slice(1), false);
+    });
+
+    // Seguimiento MG: filtro de reuniones por estado de validacion.
+    document.querySelectorAll('[data-filtro-reuniones]').forEach((chips) => {
+        const tabla = chips.closest('[data-panel]')?.querySelector('table');
+        if (!tabla) return;
+        chips.querySelectorAll('button').forEach((boton) => {
+            boton.addEventListener('click', () => {
+                chips.querySelectorAll('button').forEach((b) => b.classList.toggle('is-activo', b === boton));
+                tabla.querySelectorAll('tbody tr').forEach((fila) => {
+                    fila.hidden = boton.dataset.estado !== '' && fila.dataset.estado !== boton.dataset.estado;
+                });
+            });
+        });
+    });
+
+    // Solicitar apoyo: elegir un grupo marca tambien su materia.
+    document.querySelectorAll('.offer-elegir-grupo input[type="radio"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            const materia = radio.closest('[data-offer-card]')?.querySelector('input[name="materias[]"]');
+            if (materia && !materia.checked) { materia.checked = true; materia.dispatchEvent(new Event('change', { bubbles: true })); }
+        });
+    });
+
+    // Filtro rapido de filas de una tabla (data-filtro-tabla="id de la tabla").
+    document.querySelectorAll('[data-filtro-tabla]').forEach((input) => {
+        const tabla = document.getElementById(input.dataset.filtroTabla);
+        if (!tabla) return;
+        input.addEventListener('input', () => {
+            const q = input.value.trim().toLowerCase();
+            tabla.querySelectorAll('tbody tr').forEach((fila) => {
+                if (fila.querySelector('.empty-state')) return;
+                fila.hidden = q !== '' && !fila.textContent.toLowerCase().includes(q);
+            });
+        });
+    });
+
+    // Revisar grupo > Agregar estudiante: la lista de candidatos se filtra mientras se escribe.
+    document.querySelectorAll('[data-buscar-estudiante]').forEach((form) => {
+        const input = form.querySelector('input[name="buscar"]');
+        const lista = document.getElementById('candidatos-inscripcion');
+        if (!input || !lista) return;
+        let timer = null;
+        let ultimo = input.value.trim();
+        const buscar = async () => {
+            const texto = input.value.trim();
+            if (texto === ultimo || (texto.length === 1)) return;
+            ultimo = texto;
+            const params = new URLSearchParams(new FormData(form));
+            try {
+                const respuesta = await fetch(`${form.action.split('#')[0]}?${params}`, { credentials: 'same-origin' });
+                if (!respuesta.ok) return;
+                const html = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+                const nueva = html.getElementById('candidatos-inscripcion');
+                if (nueva && input.value.trim() === texto) lista.innerHTML = nueva.innerHTML;
+            } catch (error) { /* sin red: queda el boton Buscar */ }
+        };
+        input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(buscar, 300); });
     });
 
     // Solicitar apoyo: buscador de materias o tutores, barra con la materia elegida y perfil del tutor.

@@ -218,20 +218,23 @@ $camposUbicacion = static function (bool $conAyudaAula) use ($grupo, $modalidadF
             <?php if ((int) $grupo['cupo_ocupado'] >= (int) $grupo['cupo_max']): ?>
                 <p class="panel-note">El grupo no tiene cupo libre.</p>
             <?php else: ?>
-                <form method="get" action="<?= e(app_url('grupos/ubicacion.php')) ?>#agregar" class="inline-form">
+                <form method="get" action="<?= e(app_url('grupos/ubicacion.php')) ?>#agregar" class="inline-form" data-buscar-estudiante>
                     <input type="hidden" name="grupo" value="<?= (int) $grupo['id_grupo'] ?>">
                     <label for="buscar" class="sr-only">Buscar estudiante</label>
-                    <input id="buscar" name="buscar" value="<?= e($busqueda) ?>" minlength="2" maxlength="60" placeholder="Nombre, usuario o registro universitario">
+                    <input id="buscar" name="buscar" type="search" value="<?= e($busqueda) ?>" maxlength="60" autocomplete="off" placeholder="Escribe nombre, usuario o registro universitario">
                     <button type="submit" class="secondary">Buscar</button>
                 </form>
-                <p class="form-hint">Se aplican las mismas reglas que al asignar automáticamente: una tutoría por período, una por turno y cupo del grupo.</p>
+                <p class="form-hint">La lista se filtra mientras escribes. Se aplican las mismas reglas que al asignar automáticamente: una tutoría por período, una por turno y cupo del grupo.</p>
+                <div id="candidatos-inscripcion">
                 <?php if (!$candidatos): ?>
-                    <p class="panel-note"><?= $busqueda !== '' ? 'Ningún estudiante activo coincide con la búsqueda.' : 'Nadie está esperando esta materia. Busca a un estudiante por nombre, usuario o registro.' ?></p>
+                    <p class="panel-note"><?= $busqueda !== '' ? 'Ningún estudiante activo coincide con la búsqueda.' : 'No hay estudiantes esperando esta materia ni sugeridos de su carrera. Busca a cualquier estudiante por nombre, usuario o registro.' ?></p>
                 <?php else: ?>
+                    <p class="panel-note"><?= $busqueda !== '' ? count($candidatos) . ' resultado(s) para «' . e($busqueda) . '».' : 'Primero quienes esperan la materia; luego estudiantes de la carrera que aún no tienen tutoría en el período.' ?></p>
                     <ul class="plain-list">
                         <?php foreach ($candidatos as $c): ?>
                             <li>
-                                <?= $c['origen'] === 'espera' ? interes_badge() . ' ' : '' ?><strong><?= e($c['estudiante']) ?></strong>
+                                <?= $c['origen'] === 'espera' ? interes_badge() . ' ' : '' ?><?= $c['origen'] === 'sugerido' ? '<span class="badge badge-info">Sugerido</span> ' : '' ?><strong><?= e($c['estudiante']) ?></strong>
+                                <?php if (!empty($c['registro_universitario'])): ?><small>· R.U. <?= e($c['registro_universitario']) ?></small><?php endif; ?>
                                 <?php if (!empty($c['usuario'])): ?><small>· <?= e($c['usuario']) ?><?= !empty($c['nombre_carrera']) ? ' · ' . e($c['nombre_carrera']) : '' ?></small><?php endif; ?>
                                 <?php if ($c['bloqueo'] !== null): ?>
                                     <small class="materia-aviso"><?= e($c['bloqueo']) ?></small>
@@ -248,6 +251,7 @@ $camposUbicacion = static function (bool $conAyudaAula) use ($grupo, $modalidadF
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
+                </div>
             <?php endif; ?>
         </section>
     <?php endif; ?>

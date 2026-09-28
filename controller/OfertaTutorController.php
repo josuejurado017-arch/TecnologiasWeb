@@ -22,6 +22,57 @@ final class OfertaTutorController
         return $this->config->pendientes();
     }
 
+    public function aprobadas(): array
+    {
+        return $this->config->aprobadas();
+    }
+
+    /**
+     * La coordinacion edita una oferta aprobada (el tutor ya no puede): turnos,
+     * modalidad y cupo, con motivo. Avisa al tutor y reprocesa la demanda.
+     */
+    public function editar(int $tutorId, int $materiaId, array $input, int $adminId): ?string
+    {
+        $materia = (new Materia())->findById($materiaId);
+        $tutor = (new Tutor())->findById($tutorId);
+        if ($materia === null || $tutor === null) {
+            return 'Oferta no válida.';
+        }
+        $turnos = array_values(array_unique(array_filter(
+            is_array($input['turnos'] ?? null) ? $input['turnos'] : [],
+            fn ($t): bool => is_string($t) && $this->config->isValidTurno($t)
+        )));
+        if (!$turnos) {
+            return 'Elige al menos un turno.';
+        }
+        $modalidad = (string) ($input['modalidad'] ?? '');
+        if (!in_array($modalidad, TutorMateriaConfig::modalidadesPermitidas((string) ($materia['modalidad_requerida'] ?? 'libre')), true)) {
+            return 'Elige una modalidad que la materia admita.';
+        }
+        $cupo = filter_var($input['cupo_recomendado'] ?? null, FILTER_VALIDATE_INT);
+        $cupo = in_array($cupo, TutorMateriaConfig::CUPOS_RECOMENDADOS, true) ? $cupo : null;
+        $motivo = trim((string) ($input['motivo'] ?? ''));
+        if (mb_strlen($motivo) < 5 || mb_strlen($motivo) > 150) {
+            return 'Indica el motivo del cambio (entre 5 y 150 caracteres); lo verá el tutor.';
+        }
+
+        [$error, $historialId] = $this->config->editarPorCoordinacion($tutorId, $materiaId,
+            ['turnos' => $turnos, 'modalidad' => $modalidad, 'cupo_recomendado' => $cupo], $adminId, $motivo);
+        if ($error !== null) {
+            return $error;
+        }
+        try {
+            (new Notificacion())->create(Database::connection(), (int) $tutor['id_usuario'], null, 'oferta_editada',
+                'La coordinación ajustó tu oferta', 'Tu oferta de ' . $materia['nombre_materia'] . ' cambió: ' . $motivo . '. Sigue aprobada.',
+                '/mis-materias/', 'oferta_editada:' . $tutor['id_usuario'] . ':' . $historialId);
+        } catch (Throwable $exception) {
+            error_log('Notificacion oferta editada: ' . $exception->getMessage());
+        }
+        (new AsignacionController())->reprocesarMateria($materiaId);
+
+        return null;
+    }
+
     public function countPendientes(): int
     {
         return $this->config->countPendientes();

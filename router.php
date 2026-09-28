@@ -89,6 +89,7 @@ $routes = [
     '/tutores/ofertas' => '/php/tutores/ofertas.php',
     '/tutores/ofertas.php' => '/php/tutores/ofertas.php',
     '/tutores/ofertas_revisar.php' => '/php/tutores/ofertas_revisar.php',
+    '/tutores/ofertas_editar.php' => '/php/tutores/ofertas_editar.php',
     '/cobertura-tutores/' => '/php/tutores/cobertura.php',
     '/cobertura-tutores' => '/php/tutores/cobertura.php',
     '/tutorias/create.php' => '/php/tutorias/create.php',

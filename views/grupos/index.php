@@ -92,6 +92,39 @@
             <a class="<?= $filtro === 'sin_ubicacion' ? 'is-active' : '' ?>" href="<?= e(app_url('grupos/?estado=sin_ubicacion')) ?>">Ubicación pendiente (<?= (int) $sinUbicacion ?>)</a>
         </nav>
 
+        <form method="get" action="<?= e(app_url('grupos/')) ?>" class="card filtros-grupos" role="search" aria-label="Buscar grupos">
+            <?php if ($filtro !== null): ?><input type="hidden" name="estado" value="<?= e($filtro) ?>"><?php endif; ?>
+            <label>Buscar
+                <input type="search" name="q" value="<?= e($busqueda['q']) ?>" placeholder="Materia, tutor o carrera" maxlength="80">
+            </label>
+            <label>Turno
+                <select name="turno">
+                    <option value="">Todos</option>
+                    <?php foreach (TutorMateriaConfig::TURNOS as $clave => $t): ?>
+                        <option value="<?= e($clave) ?>" <?= $busqueda['turno'] === $clave ? 'selected' : '' ?>><?= e($t['label']) ?> (<?= e(substr($t['inicio'], 0, 5)) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label>Modalidad
+                <select name="modalidad">
+                    <option value="">Todas</option>
+                    <option value="presencial" <?= $busqueda['modalidad'] === 'presencial' ? 'selected' : '' ?>>Presencial</option>
+                    <option value="virtual" <?= $busqueda['modalidad'] === 'virtual' ? 'selected' : '' ?>>Virtual</option>
+                </select>
+            </label>
+            <label>Orden
+                <select name="orden">
+                    <option value="">Por etapa</option>
+                    <option value="recientes" <?= $busqueda['orden'] === 'recientes' ? 'selected' : '' ?>>Aprobados o actualizados recientemente</option>
+                </select>
+            </label>
+            <div class="filtros-grupos-acciones">
+                <button type="submit">Filtrar</button>
+                <?php if ($hayBusqueda): ?><a href="<?= e(app_url('grupos/' . ($filtro !== null ? '?estado=' . $filtro : ''))) ?>">Limpiar</a><?php endif; ?>
+            </div>
+        </form>
+        <p class="panel-note"><?= count($grupos) ?> grupo(s)<?= $hayBusqueda ? ' con estos filtros' : '' ?>.</p>
+
         <div class="table-wrapper card">
             <table>
                 <thead><tr><th>Materia</th><th>Tutor</th><th>Día</th><th>Horario</th><th>Modalidad</th><th>Espacio / Ubicación</th><th>Cupo</th><th>Estado</th><th>Acciones</th></tr></thead>

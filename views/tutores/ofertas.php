@@ -56,6 +56,33 @@ $hora = static fn (string $h): string => substr($h, 0, 5);
             </tbody>
         </table>
     </div>
+
+    <h2 id="aprobadas" style="margin-top:2rem;">Ofertas aprobadas (<?= count($aprobadas) ?>)</h2>
+    <p class="panel-note">Una oferta aprobada queda bloqueada para el tutor. Si hay que cambiar turnos, modalidad o cupo, lo hace la coordinación desde aquí: la oferta sigue aprobada y se le avisa al tutor.</p>
+    <div class="search-field" style="max-width:24rem;margin-bottom:0.5rem;">
+        <label class="sr-only" for="buscar-aprobada">Buscar oferta aprobada</label>
+        <input id="buscar-aprobada" type="search" placeholder="Buscar tutor o materia…" data-filtro-tabla="tabla-aprobadas">
+    </div>
+    <div class="table-wrapper card">
+        <table id="tabla-aprobadas">
+            <thead><tr><th>Tutor</th><th>Materia</th><th>Modalidad</th><th>Turnos</th><th>Grupos vigentes</th><th>Acciones</th></tr></thead>
+            <tbody>
+                <?php foreach ($aprobadas as $a): ?>
+                    <tr>
+                        <td><strong><?= e($a['tutor']) ?></strong></td>
+                        <td><?= e($a['nombre_materia']) ?></td>
+                        <td><?= e(ucfirst((string) $a['modalidad'])) ?></td>
+                        <td><?= e(implode(', ', array_map(static fn (string $t): string => $turnoLabels[$t] ?? $t, $a['turnos'])) ?: '—') ?><?php if ($a['cupo_recomendado']): ?><br><small>Cupo: <?= (int) $a['cupo_recomendado'] ?></small><?php endif; ?></td>
+                        <td><?= (int) $a['grupos'] ?></td>
+                        <td class="actions"><a href="<?= e(app_url('tutores/ofertas_editar.php?tutor=' . (int) $a['id_tutor'] . '&materia=' . (int) $a['id_materia'])) ?>">Editar</a></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$aprobadas): ?>
+                    <tr><td colspan="6" class="empty-state">No hay ofertas aprobadas en el período.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
 </main>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

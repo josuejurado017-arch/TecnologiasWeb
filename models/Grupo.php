@@ -128,13 +128,33 @@ final class Grupo
      * administrador). $estado filtra por etapa visible (sqlEtapa); 'sin_ubicacion'
      * devuelve los vigentes con la ubicacion pendiente.
      */
-    public function allByPeriodo(int $periodoId, ?string $estado = null): array
+    public function allByPeriodo(int $periodoId, ?string $estado = null, array $filtros = []): array
     {
         $where = '';
         $params = ['id_periodo' => $periodoId];
         if ($estado !== null && ($condicion = self::sqlEtapa($estado)) !== null) {
             $where = ' AND ' . $condicion;
         }
+        // Filtros de la lista: texto (materia, tutor o carrera), turno, modalidad y orden.
+        $q = trim((string) ($filtros['q'] ?? ''));
+        if ($q !== '') {
+            $where .= " AND (m.nombre_materia LIKE :q1 OR CONCAT(u.nombre, ' ', u.apellido) LIKE :q2 OR c.nombre_carrera LIKE :q3)";
+            $params += ['q1' => '%' . $q . '%', 'q2' => '%' . $q . '%', 'q3' => '%' . $q . '%'];
+        }
+        $turno = TutorMateriaConfig::TURNOS[$filtros['turno'] ?? ''] ?? null;
+        if ($turno !== null) {
+            $where .= ' AND g.hora_inicio = :turno_inicio';
+            $params['turno_inicio'] = $turno['inicio'];
+        }
+        if (in_array($filtros['modalidad'] ?? '', ['presencial', 'virtual'], true)) {
+            $where .= ' AND g.modalidad = :modalidad';
+            $params['modalidad'] = $filtros['modalidad'];
+        }
+        $orden = ($filtros['orden'] ?? '') === 'recientes'
+            ? 'COALESCE(g.fecha_aprobacion, g.fecha_estado) DESC, g.id_grupo DESC'
+            : "FIELD(g.estado,'por_aprobar','confirmado','formacion','en_curso','finalizado','cancelado'),
+                      (g.estado = 'por_aprobar' AND g.cupo_ocupado >= " . self::UMBRAL_GRUPO_NORMAL . ') DESC,
+                      m.nombre_materia, g.hora_inicio';
 
         $statement = Database::connection()->prepare(
             "SELECT g.id_grupo, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad, g.fecha_aprobacion,
@@ -144,6 +164,7 @@ final class Grupo
                     GROUP_CONCAT(gd.dia_semana ORDER BY FIELD(gd.dia_semana,'Lunes','Martes','Miercoles','Jueves','Viernes','Sabado') SEPARATOR '/') AS dias
              FROM grupos_tutoria g
              INNER JOIN materias m ON m.id_materia = g.id_materia
+             LEFT JOIN carreras c ON c.id_carrera = m.id_carrera
              INNER JOIN espacios_tutoria e ON e.id_espacio = g.id_espacio
              INNER JOIN tutores t ON t.id_tutor = g.id_tutor
              INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
@@ -152,9 +173,7 @@ final class Grupo
              GROUP BY g.id_grupo, g.dia_semana, g.hora_inicio, g.hora_fin, g.modalidad, g.fecha_aprobacion,
                       g.cupo_max, g.cupo_ocupado, g.estado, g.ubicacion, g.enlace, g.enlace_propuesto,
                       m.nombre_materia, e.nombre, tutor
-             ORDER BY FIELD(g.estado,'por_aprobar','confirmado','formacion','en_curso','finalizado','cancelado'),
-                      (g.estado = 'por_aprobar' AND g.cupo_ocupado >= " . self::UMBRAL_GRUPO_NORMAL . ") DESC,
-                      m.nombre_materia, g.hora_inicio"
+             ORDER BY {$orden}"
         );
         $statement->execute($params);
 
@@ -496,6 +515,67 @@ final class Grupo
             "UPDATE grupos_tutoria SET estado = 'confirmado', fecha_estado = NOW()
              WHERE id_grupo = :id AND estado = 'formacion' AND cupo_ocupado >= :cupo_min"
         )->execute(['id' => $grupoId, 'cupo_min' => $cupoMin]);
+
+        $this->pasarANormalPorDemanda($grupoId);
+    }
+
+    /**
+     * Regla de frecuencia por demanda aplicada en el momento: un grupo reducido
+     * (LMV/MJS) vigente que llega a UMBRAL_GRUPO_NORMAL inscritos pasa a Lunes a
+     * Viernes sin esperar a la aprobacion. No puede chocar: tutor y estudiante
+     * tienen como maximo una tutoria por turno, sin importar los dias. Si el grupo
+     * ya tiene calendario se agregan las sesiones futuras de los dias nuevos y se
+     * cancelan las futuras que quedan fuera (sabado de MJS). Corre dentro de la
+     * transaccion de la inscripcion. Devuelve true si cambio.
+     */
+    public function pasarANormalPorDemanda(int $grupoId, ?int $userId = null): bool
+    {
+        $pdo = Database::connection();
+        $statement = $pdo->prepare(
+            'SELECT g.id_grupo, g.estado, g.cupo_ocupado, g.id_tutor, m.nombre_materia, p.fecha_inicio, p.fecha_fin
+             FROM grupos_tutoria g INNER JOIN materias m ON m.id_materia = g.id_materia INNER JOIN periodos p ON p.id_periodo = g.id_periodo
+             WHERE g.id_grupo = :id'
+        );
+        $statement->execute(['id' => $grupoId]);
+        $grupo = $statement->fetch();
+        if (!$grupo || !in_array($grupo['estado'], self::ESTADOS_VIGENTES, true) || (int) $grupo['cupo_ocupado'] < self::UMBRAL_GRUPO_NORMAL) {
+            return false;
+        }
+        $diasActuales = $this->dias($grupoId);
+        $patron = self::patronReducido($diasActuales);
+        if ($patron === null) {
+            return false;
+        }
+
+        $this->cambiarDias($grupoId, self::PATRON_NORMAL);
+        $conCalendario = (int) $pdo->query('SELECT COUNT(*) FROM sesiones_tutoria WHERE id_grupo = ' . (int) $grupoId)->fetchColumn() > 0;
+        if ($conCalendario) {
+            $desde = max(date('Y-m-d'), (string) $grupo['fecha_inicio']);
+            $this->generateSessions($grupoId, self::PATRON_NORMAL, $desde, (string) $grupo['fecha_fin']);
+            $pdo->prepare(
+                "UPDATE sesiones_tutoria SET estado = 'cancelada'
+                 WHERE id_grupo = :id AND estado = 'programada' AND fecha >= :desde AND DAYOFWEEK(fecha) IN (1, 7)"
+            )->execute(['id' => $grupoId, 'desde' => $desde]);
+        }
+
+        $detalle = self::PATRONES_REDUCIDOS[$patron]['corto'] . ' → Lunes a viernes (alcanzó ' . self::UMBRAL_GRUPO_NORMAL . ' inscritos)';
+        $eventoId = (new HistorialGrupo())->log($pdo, $grupoId, 'frecuencia_cambiada', (string) $grupo['estado'], (string) $grupo['estado'], $userId, $detalle);
+        if ($grupo['estado'] !== 'por_aprobar') {
+            $notificaciones = new Notificacion();
+            $mensaje = 'Tu grupo de ' . $grupo['nombre_materia'] . ' llegó a ' . self::UMBRAL_GRUPO_NORMAL
+                . ' estudiantes: ahora tiene clases de lunes a viernes, en el mismo horario.';
+            $destinos = $pdo->prepare(
+                "SELECT e.id_usuario FROM inscripciones i INNER JOIN estudiantes e ON e.id_estudiante = i.id_estudiante
+                 WHERE i.id_grupo = :id AND i.estado = 'inscrito'
+                 UNION SELECT t.id_usuario FROM tutores t WHERE t.id_tutor = :tutor"
+            );
+            $destinos->execute(['id' => $grupoId, 'tutor' => $grupo['id_tutor']]);
+            foreach ($destinos->fetchAll(PDO::FETCH_COLUMN) as $usuarioId) {
+                $notificaciones->notifyEventoGrupo($pdo, (int) $usuarioId, $grupoId, 'frecuencia_cambiada', 'Tu tutoría pasa a lunes a viernes', $mensaje, '/dashboard.php', $eventoId);
+            }
+        }
+
+        return true;
     }
 
     // ------------------------------------------------------------------

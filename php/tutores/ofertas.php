@@ -11,6 +11,7 @@ $activePage = 'ofertas-tutores';
 
 $messages = [
     'rejected' => 'Oferta rechazada. Se le notificó el motivo al tutor.',
+    'edited' => 'Oferta actualizada. Sigue aprobada y se le avisó al tutor.',
 ];
 $messageCode = isset($_GET['message']) && is_string($_GET['message']) ? $_GET['message'] : '';
 $message = $messages[$messageCode] ?? null;
@@ -23,6 +24,7 @@ if ($messageCode === 'approved') {
 $error = isset($_GET['error']) && is_string($_GET['error']) ? $_GET['error'] : null;
 
 $ofertas = (new OfertaTutorController())->pendientes();
+$aprobadas = (new OfertaTutorController())->aprobadas();
 $turnoLabels = array_map(static fn (array $t): string => $t['label'] . ' (' . substr($t['inicio'], 0, 5) . '–' . substr($t['fin'], 0, 5) . ')', TutorMateriaConfig::TURNOS);
 
 require dirname(__DIR__, 2) . '/views/tutores/ofertas.php';

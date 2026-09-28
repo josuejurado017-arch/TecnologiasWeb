@@ -121,18 +121,45 @@ $hora = static fn (string $h): string => substr($h, 0, 5);
                         </div>
                     <?php endif; ?>
 
+                    <?php if ($config['configured'] && $config['estado'] === 'aprobado' && !$config['modalidad_incompatible']): ?>
+                        <?php // Oferta aprobada: bloqueada para el tutor; los cambios los hace la coordinacion. ?>
+                        <dl class="offer-facts materia-aprobada">
+                            <div><dt>Turnos</dt><dd><?= e(implode(', ', array_map(static fn (string $t): string => (TutorMateriaConfig::TURNOS[$t]['label'] ?? $t) . ' ' . $hora(TutorMateriaConfig::TURNOS[$t]['inicio'] ?? '') . '–' . $hora(TutorMateriaConfig::TURNOS[$t]['fin'] ?? ''), $config['turnos']))) ?></dd></div>
+                            <div><dt>Modalidad</dt><dd><?= e($modalidadLabels[$config['modalidad']] ?? $config['modalidad']) ?></dd></div>
+                            <div><dt>Cupo máximo</dt><dd><?= $config['cupo_recomendado'] ? (int) $config['cupo_recomendado'] . ' estudiantes' : 'Sin preferencia' ?></dd></div>
+                        </dl>
+                        <p class="materia-nota">🔒 La coordinación aprobó esta oferta y ya no se edita desde aquí. Si necesitas cambiar turnos, modalidad o cupo, pídeselo a la coordinación. Mientras no tengas grupos de esta materia, puedes dejar de ofertarla.</p>
+                        <form method="post" action="<?= e(app_url('tutor/mis_materias/eliminar.php')) ?>" class="materia-actions" onsubmit="return confirm('¿Dejar de ofertar esta materia? Si ya tienes un grupo, el sistema no lo permitirá.');">
+                            <input type="hidden" name="id_materia" value="<?= $materiaId ?>">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <button type="submit" class="link-button">Dejar de ofertar</button>
+                        </form>
+                    <?php else: ?>
                     <form method="post" action="<?= e(app_url('tutor/mis_materias/configurar.php')) ?>" class="materia-form">
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                         <input type="hidden" name="id_materia" value="<?= $materiaId ?>">
 
                         <div class="materia-form-grid">
-                            <fieldset class="materia-field">
+                            <?php $turnosInfo = $subject['turnos_info']; ?>
+                            <fieldset class="materia-field" data-max-turnos="<?= (int) $turnosInfo['max'] ?>">
                                 <legend>Turnos</legend>
+                                <p class="form-hint">
+                                    <?php if ((int) $turnosInfo['max'] === 0): ?>
+                                        Ya usaste tus turnos del período en otra materia.
+                                    <?php else: ?>
+                                        Puedes elegir hasta <?= (int) $turnosInfo['max'] === 1 ? '1 turno' : (int) $turnosInfo['max'] . ' turnos' ?> (un grupo por turno, sumando todas tus materias).
+                                    <?php endif; ?>
+                                </p>
                                 <div class="chip-group chip-group-2">
                                     <?php foreach (TutorMateriaConfig::TURNOS as $key => $turno): ?>
-                                        <label class="chip">
-                                            <input type="checkbox" name="turnos[]" value="<?= e($key) ?>" <?= in_array($key, $config['turnos'], true) ? 'checked' : '' ?>>
-                                            <span><strong><?= e($turno['label']) ?></strong><small><?= e($hora($turno['inicio'])) ?>–<?= e($hora($turno['fin'])) ?></small></span>
+                                        <?php
+                                        $marcado = in_array($key, $config['turnos'], true);
+                                        $bloqueo = !$marcado ? ($turnosInfo['bloqueados'][$key] ?? null) : null;
+                                        ?>
+                                        <label class="chip<?= $bloqueo ? ' chip-bloqueado' : '' ?>"<?= $bloqueo ? ' title="' . e($bloqueo) . '"' : '' ?>>
+                                            <input type="checkbox" name="turnos[]" value="<?= e($key) ?>" <?= $marcado ? 'checked' : '' ?> <?= $bloqueo ? 'disabled data-bloqueado' : '' ?>>
+                                            <span><strong><?= e($turno['label']) ?></strong><small><?= e($hora($turno['inicio'])) ?>–<?= e($hora($turno['fin'])) ?></small>
+                                                <small class="chip-estado"><?= e($bloqueo ?? 'Disponible') ?></small></span>
                                         </label>
                                     <?php endforeach; ?>
                                 </div>
@@ -173,6 +200,7 @@ $hora = static fn (string $h): string => substr($h, 0, 5);
                         <input type="hidden" name="id_materia" value="<?= $materiaId ?>">
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     </form>
+                    <?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </div>

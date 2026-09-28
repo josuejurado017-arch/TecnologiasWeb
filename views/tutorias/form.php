@@ -8,6 +8,7 @@ $resultLabels = [
     'lista_espera' => ['En lista de espera', 'warning'],
     'interes_registrado' => ['Interés registrado', 'info'],
     'espera_retirada' => ['Solicitud retirada', 'info'],
+    'grupo_no_disponible' => ['No se pudo inscribir', 'warning'],
 ];
 
 // Estado de oferta -> [icono, etiqueta, tono visual]
@@ -62,7 +63,7 @@ $tutorChip = static function (int $tutorId) use ($perfiles, $iniciales): void {
     <div class="page-heading">
         <div>
             <h1>Solicitar apoyo académico</h1>
-            <p>Elige <strong>una materia</strong>: el sistema te ubica en un grupo compatible con tu horario. No eliges tutor, pero puedes ver su perfil.</p>
+            <p>Elige <strong>una materia</strong>: el sistema te ubica en un grupo compatible con tu horario. Si la materia tiene varios grupos, puedes elegir en cuál estar; también puedes ver el perfil de cada tutor.</p>
         </div>
         <a class="button secondary" href="<?= e(app_url('mis-tutorias/')) ?>">Mis tutorías</a>
     </div>
@@ -178,14 +179,31 @@ $tutorChip = static function (int $tutorId) use ($perfiles, $iniciales): void {
                                         </div>
                                     <?php endif; ?>
                                     <?php if (count($s['grupos']) > 1): ?>
-                                        <details class="offer-details">
-                                            <summary>Ver los <?= count($s['grupos']) ?> grupos</summary>
-                                            <ul class="offer-grupos">
+                                        <?php if ($isSelectable): ?>
+                                            <fieldset class="offer-elegir-grupo">
+                                                <legend>Hay <?= count($s['grupos']) ?> grupos: elige en cuál quieres estar</legend>
+                                                <label class="offer-grupo-opcion">
+                                                    <input type="radio" name="grupo_<?= (int) $s['id_materia'] ?>" value="" checked>
+                                                    <span><strong>Que el sistema elija</strong><small>El que mejor se ajuste a tu horario</small></span>
+                                                </label>
                                                 <?php foreach ($s['grupos'] as $g): ?>
-                                                    <li><?= e(GruposController::etiquetaDias(explode('/', (string) ($g['dias'] ?: $g['dia_semana'])))) ?> <?= e($hora($g['hora_inicio'])) ?>–<?= e($hora($g['hora_fin'])) ?> · <?= e(ucfirst((string) $g['modalidad'])) ?> · <?= (int) $g['cupo_max'] - (int) $g['cupo_ocupado'] ?> cupos · <?= e($g['tutor']) ?></li>
+                                                    <label class="offer-grupo-opcion">
+                                                        <input type="radio" name="grupo_<?= (int) $s['id_materia'] ?>" value="<?= (int) $g['id_grupo'] ?>">
+                                                        <span><strong><?= e(GruposController::etiquetaDias(explode('/', (string) ($g['dias'] ?: $g['dia_semana'])))) ?> · <?= e($hora($g['hora_inicio'])) ?>–<?= e($hora($g['hora_fin'])) ?></strong>
+                                                            <small><?= e($g['tutor']) ?> · <?= e(ucfirst((string) $g['modalidad'])) ?> · <?= (int) $g['cupo_max'] - (int) $g['cupo_ocupado'] ?> cupos libres</small></span>
+                                                    </label>
                                                 <?php endforeach; ?>
-                                            </ul>
-                                        </details>
+                                            </fieldset>
+                                        <?php else: ?>
+                                            <details class="offer-details">
+                                                <summary>Ver los <?= count($s['grupos']) ?> grupos</summary>
+                                                <ul class="offer-grupos">
+                                                    <?php foreach ($s['grupos'] as $g): ?>
+                                                        <li><?= e(GruposController::etiquetaDias(explode('/', (string) ($g['dias'] ?: $g['dia_semana'])))) ?> <?= e($hora($g['hora_inicio'])) ?>–<?= e($hora($g['hora_fin'])) ?> · <?= e(ucfirst((string) $g['modalidad'])) ?> · <?= (int) $g['cupo_max'] - (int) $g['cupo_ocupado'] ?> cupos · <?= e($g['tutor']) ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </details>
+                                        <?php endif; ?>
                                     <?php endif; ?>
 
                                 <?php elseif ($s['estado'] === OfertaMateria::ESTADO_POR_ABRIR): ?>

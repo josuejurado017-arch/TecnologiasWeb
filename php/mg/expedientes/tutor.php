@@ -71,7 +71,8 @@ require dirname(__DIR__, 3) . '/views/layouts/header.php';
                 </div>
                 <div>
                     <label for="referencia_decanatura">Referencia de Decanatura</label>
-                    <input id="referencia_decanatura" name="referencia_decanatura" type="text" maxlength="100" required value="<?= e((string) $data['referencia_decanatura']) ?>" placeholder="Nro. de nota o resolución">
+                    <input id="referencia_decanatura" name="referencia_decanatura" type="text" maxlength="100" required value="<?= e((string) $data['referencia_decanatura']) ?>" placeholder="Ej.: Nota DEC-FCE/045/2026" aria-describedby="ayuda-decanatura">
+                    <small id="ayuda-decanatura" class="form-hint">Número de la nota o resolución con la que Decanatura validó que el docente es afín al tema (RN-MG-05). Cópialo tal como figura en el documento físico: lo emite Decanatura, por eso el sistema no lo genera. Queda impreso en la carta de asignación.</small>
                 </div>
             </div>
             <label class="mg-check"><input type="checkbox" name="disponibilidad_consultada" value="1" <?= !empty($data['disponibilidad_consultada']) ? 'checked' : '' ?> required> Se consultó la disponibilidad del docente (RN-MG-06)</label>

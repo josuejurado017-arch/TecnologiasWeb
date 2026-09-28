@@ -89,7 +89,11 @@ final class AsignacionController
      * Una materia sin oferta (sin tutor con horarios configurados) no pasa por el motor:
      * se registra como interes para que la universidad mida la demanda real.
      */
-    public function solicitarApoyo(int $studentId, array $matterIds, array $periodo): array
+    /**
+     * $grupoPreferido: grupo que el estudiante eligio cuando la materia tiene varios
+     * (null = el sistema elige el que se ajusta a su horario).
+     */
+    public function solicitarApoyo(int $studentId, array $matterIds, array $periodo, ?int $grupoPreferido = null): array
     {
         $periodoId = (int) $periodo['id_periodo'];
         $cupoMin = (int) $periodo['cupo_min_grupo'];
@@ -129,7 +133,9 @@ final class AsignacionController
                 continue;
             }
 
-            $outcome = $this->assignMatter($studentId, $matterId, $periodoId, $cupoMin, $cupoMax);
+            $outcome = $grupoPreferido !== null
+                ? $this->inscribirEnGrupoElegido($studentId, $matterId, $periodoId, $cupoMin, $grupoPreferido)
+                : $this->assignMatter($studentId, $matterId, $periodoId, $cupoMin, $cupoMax);
             $outcome['id_materia'] = $matterId;
             $outcome['nombre'] = $name;
             $results[] = $outcome;
@@ -362,6 +368,38 @@ final class AsignacionController
             : 'Hay tutor para esta materia, pero ningún horario compatible con tu agenda por ahora. Quedaste en lista de espera.';
 
         return ['resultado' => 'lista_espera', 'motivo' => $motivo, 'detalle' => $detalle];
+    }
+
+    /**
+     * El estudiante eligio un grupo concreto de la materia. Mismas reglas que el
+     * motor (cupo, inscripcion abierta, un turno por estudiante); si ese grupo ya no
+     * sirve no se lo ubica en otro ni se registra espera: se le pide elegir de nuevo.
+     */
+    private function inscribirEnGrupoElegido(int $studentId, int $matterId, int $periodoId, int $cupoMin, int $grupoId): array
+    {
+        $elegido = null;
+        foreach ($this->grupos->candidatesForMatter($periodoId, $matterId) as $candidate) {
+            if ((int) $candidate['id_grupo'] === $grupoId) {
+                $elegido = $candidate;
+            }
+        }
+        $noDisponible = ['resultado' => 'grupo_no_disponible',
+            'detalle' => 'El grupo que elegiste ya no tiene cupo o cerró su inscripción. Elige otro grupo o deja que el sistema te ubique.'];
+        if ($elegido === null) {
+            return $noDisponible;
+        }
+        if ($this->ocupaTurno($this->inscripciones->studentBusySlots($studentId, $periodoId), $elegido['hora_inicio'], $elegido['hora_fin'])) {
+            return ['resultado' => 'grupo_no_disponible', 'detalle' => 'Ese grupo es en un turno en el que ya tienes otra tutoría. Elige otro grupo.'];
+        }
+        $group = $this->enrollInExisting($grupoId, $studentId, $cupoMin);
+        if ($group === null) {
+            return $noDisponible;
+        }
+        $this->demanda->markAttended($periodoId, $matterId, $studentId);
+        $this->emitNotifications($group, $studentId, $cupoMin);
+        $this->alertarCupoCompleto($periodoId, $matterId);
+
+        return ['resultado' => 'asignado', 'detalle' => $this->describeForStudent($group)];
     }
 
     private function alertarCupoCompleto(int $periodoId, int $materiaId): void

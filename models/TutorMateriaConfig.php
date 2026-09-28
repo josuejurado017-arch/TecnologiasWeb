@@ -105,6 +105,18 @@ final class TutorMateriaConfig
         if ((int) $ocupacion['total'] >= $limite && (int) $ocupacion['misma'] === 0) {
             return 'El tutor ya tiene ' . self::cantidadEnLetras($limite, 'grupo', 'grupos') . ' en este período.';
         }
+        // Cada turno ofertado es un grupo posible: la suma de turnos de todas sus
+        // materias no puede pasar el tope de grupos (aunque sean de la misma materia).
+        $otrosTurnos = $pdo->prepare("SELECT COUNT(*) FROM tutor_materia_turno tt INNER JOIN tutor_materia_config c
+            ON c.id_tutor = tt.id_tutor AND c.id_materia = tt.id_materia AND c.id_periodo = tt.id_periodo
+            WHERE tt.id_periodo = :p AND tt.id_tutor = :t AND tt.id_materia <> :m AND c.estado IN ('pendiente','aprobado','propuesta')");
+        $otrosTurnos->execute(['p' => $periodoId, 't' => $tutorId, 'm' => $materiaId]);
+        $usados = (int) $otrosTurnos->fetchColumn();
+        if ($usados + count($turnos) > $limite) {
+            $quedan = max(0, $limite - $usados);
+            return 'Puedes ofertar como máximo ' . self::cantidadEnLetras($limite, 'turno', 'turnos') . ' en el período (un grupo por turno), sumando todas tus materias. '
+                . ($quedan === 0 ? 'Ya los usaste en otra materia.' : 'Para esta materia te ' . ($quedan === 1 ? 'queda 1 turno.' : 'quedan ' . $quedan . ' turnos.'));
+        }
         foreach ($turnos as $turno) {
             $ocupado = $pdo->prepare("SELECT 1 FROM tutor_materia_turno tt INNER JOIN tutor_materia_config c
                 ON c.id_tutor = tt.id_tutor AND c.id_materia = tt.id_materia AND c.id_periodo = tt.id_periodo
@@ -226,6 +238,42 @@ final class TutorMateriaConfig
         $stmt = Database::connection()->prepare("SELECT COUNT(*) FROM tutor_materia_config WHERE id_tutor = :t AND id_periodo = :p AND estado IN ('pendiente','aprobado','propuesta')");
         $stmt->execute(['t' => $tutorId, 'p' => $periodoId]);
         return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Para el formulario de "Mis materias": cuantos turnos puede marcar el tutor en
+     * esta materia (tope del periodo menos los que ya usa en otras materias) y que
+     * turnos no puede elegir y por que (cubiertos por otro tutor o usados en otra
+     * materia suya). Son las mismas reglas de validarCarga, vistas de antemano.
+     */
+    public function turnosDisponibles(int $tutorId, int $materiaId): array
+    {
+        $periodoId = $this->periodoActivo();
+        if ($periodoId === null) {
+            return ['max' => 0, 'bloqueados' => []];
+        }
+        $statement = Database::connection()->prepare(
+            "SELECT tt.turno, tt.id_tutor, tt.id_materia, c.estado, m.nombre_materia, CONCAT(u.nombre, ' ', u.apellido) AS tutor
+             FROM tutor_materia_turno tt
+             INNER JOIN tutor_materia_config c ON c.id_tutor = tt.id_tutor AND c.id_materia = tt.id_materia AND c.id_periodo = tt.id_periodo
+             INNER JOIN materias m ON m.id_materia = tt.id_materia
+             INNER JOIN tutores t ON t.id_tutor = tt.id_tutor INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             WHERE tt.id_periodo = :p AND ((tt.id_tutor = :t AND tt.id_materia <> :m AND c.estado IN ('pendiente','aprobado','propuesta'))
+                OR (tt.id_tutor <> :t2 AND tt.id_materia = :m2 AND c.estado IN ('aprobado','propuesta')))"
+        );
+        $statement->execute(['p' => $periodoId, 't' => $tutorId, 'm' => $materiaId, 't2' => $tutorId, 'm2' => $materiaId]);
+        $bloqueados = [];
+        $usados = 0;
+        foreach ($statement->fetchAll() as $row) {
+            if ((int) $row['id_tutor'] === $tutorId) {
+                $usados++;
+                $bloqueados[$row['turno']] = 'Lo usas en ' . $row['nombre_materia'];
+            } elseif (!isset($bloqueados[$row['turno']])) {
+                $bloqueados[$row['turno']] = 'Cubierto por ' . $row['tutor'];
+            }
+        }
+
+        return ['max' => max(0, $this->limiteCarga($periodoId) - $usados), 'bloqueados' => $bloqueados];
     }
 
     /** Cobertura de los cuatro turnos para mostrar a quien ofrece una materia. */
@@ -367,6 +415,30 @@ final class TutorMateriaConfig
      * Devuelve el id de historial de la transicion a 'pendiente', o null si ya
      * estaba pendiente (nada que renotificar).
      */
+    /** Resultado de save() cuando la configuracion enviada es igual a la guardada. */
+    public const SIN_CAMBIOS = 0;
+
+    /** true si modalidad, cupo y turnos enviados son los mismos que los guardados. */
+    private function sinCambios(int $tutorId, int $materiaId, array $data): bool
+    {
+        $actual = $this->find($tutorId, $materiaId);
+        if ($actual === null) {
+            return false;
+        }
+        $antes = $actual['turnos'];
+        $despues = $data['turnos'];
+        sort($antes);
+        sort($despues);
+
+        return $actual['modalidad'] === $data['modalidad']
+            && ($actual['cupo_recomendado'] === null ? null : (int) $actual['cupo_recomendado']) === $data['cupo_recomendado']
+            && $antes === $despues;
+    }
+
+    /**
+     * Guarda la oferta y la deja pendiente de revision. Devuelve el id del historial
+     * si cambio de estado, null si ya estaba pendiente, o SIN_CAMBIOS si no hubo cambios.
+     */
     public function save(int $tutorId, int $materiaId, array $data): ?int
     {
         $periodoId = $this->periodoActivo();
@@ -382,6 +454,12 @@ final class TutorMateriaConfig
             $previo->execute(['id_tutor' => $tutorId, 'id_materia' => $materiaId, 'p' => $periodoId]);
             $estadoAnterior = $previo->fetchColumn();
             $estadoAnterior = $estadoAnterior === false ? null : (string) $estadoAnterior;
+
+            // Guardar sin cambios no toca la oferta: una aprobada sigue aprobada.
+            if (in_array($estadoAnterior, ['aprobado', 'pendiente'], true) && $this->sinCambios($tutorId, $materiaId, $data)) {
+                $connection->commit();
+                return self::SIN_CAMBIOS;
+            }
 
             $carga = $this->validarCarga($connection, $tutorId, $materiaId, $periodoId, $data['turnos']);
             if ($carga !== null) {
@@ -581,6 +659,94 @@ final class TutorMateriaConfig
     // ------------------------------------------------------------------
 
     /** Ofertas (tutor + materia) pendientes de revision, con el detalle para decidir. */
+    /** Ofertas aprobadas del periodo activo (la coordinacion puede editarlas). */
+    public function aprobadas(): array
+    {
+        $rows = Database::connection()->query(
+            "SELECT c.id_tutor, c.id_materia, c.modalidad, c.cupo_recomendado, c.fecha_revision,
+                    CONCAT(u.nombre, ' ', u.apellido) AS tutor, m.nombre_materia, m.modalidad_requerida,
+                    (SELECT COUNT(*) FROM grupos_tutoria g WHERE g.id_tutor = c.id_tutor AND g.id_materia = c.id_materia
+                       AND g.id_periodo = c.id_periodo AND g.estado IN ('por_aprobar','formacion','confirmado','en_curso')) AS grupos
+             FROM tutor_materia_config c
+             INNER JOIN tutores t ON t.id_tutor = c.id_tutor
+             INNER JOIN usuarios u ON u.id_usuario = t.id_usuario
+             INNER JOIN materias m ON m.id_materia = c.id_materia
+             WHERE c.estado = 'aprobado' AND c.id_periodo = " . Periodo::sqlIdActivo() . "
+             ORDER BY u.apellido, u.nombre, m.nombre_materia"
+        )->fetchAll();
+        foreach ($rows as &$row) {
+            $row['turnos'] = $this->turnos((int) $row['id_tutor'], (int) $row['id_materia']);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * La coordinacion cambia turnos, modalidad o cupo de una oferta aprobada: sigue
+     * aprobada (el tutor ya no la edita). Mismas reglas de carga que al ofertar y no
+     * se puede quitar un turno donde el tutor ya tiene un grupo vigente de la materia.
+     * Devuelve [error|null, historialId|null].
+     */
+    public function editarPorCoordinacion(int $tutorId, int $materiaId, array $data, int $adminId, string $motivo): array
+    {
+        $periodoId = $this->periodoActivo();
+        if ($periodoId === null) { return ['No hay un período activo.', null]; }
+        $connection = Database::connection();
+        $connection->beginTransaction();
+        try {
+            $this->bloquearPeriodo($connection, $periodoId);
+            $this->bloquearTutor($connection, $tutorId);
+            $actual = $this->find($tutorId, $materiaId);
+            if ($actual === null || $actual['estado'] !== 'aprobado') {
+                $connection->rollBack();
+                return ['La oferta ya no está aprobada. Recarga la página.', null];
+            }
+            if ($this->sinCambios($tutorId, $materiaId, $data)) {
+                $connection->rollBack();
+                return ['No cambiaste nada.', null];
+            }
+            foreach (array_diff($actual['turnos'], $data['turnos']) as $quitado) {
+                $grupo = $connection->prepare("SELECT 1 FROM grupos_tutoria WHERE id_tutor = :t AND id_materia = :m AND id_periodo = :p
+                    AND hora_inicio = :h AND estado IN ('por_aprobar','formacion','confirmado','en_curso') LIMIT 1");
+                $grupo->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId, 'h' => self::TURNOS[$quitado]['inicio']]);
+                if ($grupo->fetchColumn()) {
+                    $connection->rollBack();
+                    return ['El tutor ya tiene un grupo vigente en el turno ' . self::TURNOS[$quitado]['label'] . ': no se puede quitar ese turno.', null];
+                }
+            }
+            if (($carga = $this->validarCarga($connection, $tutorId, $materiaId, $periodoId, $data['turnos'])) !== null) {
+                $connection->rollBack();
+                return [$carga, null];
+            }
+            $connection->prepare(
+                'UPDATE tutor_materia_config SET modalidad = :modalidad, cupo_recomendado = :cupo, id_usuario_revision = :u, fecha_revision = NOW()
+                 WHERE id_tutor = :t AND id_materia = :m AND id_periodo = :p'
+            )->execute(['modalidad' => $data['modalidad'], 'cupo' => $data['cupo_recomendado'], 'u' => $adminId, 't' => $tutorId, 'm' => $materiaId, 'p' => $periodoId]);
+            $connection->prepare('DELETE FROM tutor_materia_turno WHERE id_tutor = :t AND id_materia = :m AND id_periodo = :p')
+                ->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId]);
+            $insert = $connection->prepare('INSERT INTO tutor_materia_turno (id_tutor, id_materia, id_periodo, turno) VALUES (:t, :m, :p, :turno)');
+            foreach ($data['turnos'] as $turno) {
+                $insert->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId, 'turno' => $turno]);
+            }
+            $etiquetas = static fn (array $t): string => implode(', ', array_map(static fn (string $x): string => self::TURNOS[$x]['label'] ?? $x, $t));
+            $detalle = mb_substr('Editada por la coordinación: ' . $motivo . ' (turnos ' . $etiquetas($actual['turnos']) . ' → ' . $etiquetas($data['turnos'])
+                . ', modalidad ' . $actual['modalidad'] . ' → ' . $data['modalidad'] . ').', 0, 300);
+            $connection->prepare(
+                "INSERT INTO tutor_materia_historial (id_tutor, id_materia, id_periodo, estado_anterior, estado_nuevo, motivo, id_usuario_accion)
+                 VALUES (:t, :m, :p, 'aprobado', 'aprobado', :motivo, :u)"
+            )->execute(['t' => $tutorId, 'm' => $materiaId, 'p' => $periodoId, 'motivo' => $detalle, 'u' => $adminId]);
+            $historialId = (int) $connection->lastInsertId();
+            $connection->commit();
+        } catch (Throwable $exception) {
+            $connection->rollBack();
+            error_log('Editar oferta tutor ' . $tutorId . ' materia ' . $materiaId . ': ' . $exception->getMessage());
+            return ['No fue posible guardar los cambios de la oferta.', null];
+        }
+
+        return [null, $historialId];
+    }
+
     public function pendientes(): array
     {
         $statement = Database::connection()->query(

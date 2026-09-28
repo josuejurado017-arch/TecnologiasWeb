@@ -25,7 +25,7 @@
 
     <?php if ($alertasAltas): ?>
         <section class="card">
-            <div class="section-heading"><div><span class="eyebrow">HU-038 · prioridad</span><h2>Alertas altas abiertas</h2></div><a href="<?= e(app_url('mg/alertas.php?severidad=alta')) ?>">Ver todas</a></div>
+            <div class="section-heading"><div><span class="eyebrow">Prioridad</span><h2>Alertas altas abiertas</h2></div><a href="<?= e(app_url('mg/alertas.php?severidad=alta')) ?>">Ver todas</a></div>
             <ul class="mg-lista">
                 <?php foreach (array_slice($alertasAltas, 0, 8) as $alerta): ?>
                     <li><?= MgAlerta::badge('alta') ?> <strong><?= e($alerta['titulo']) ?></strong> · <?php if ($alerta['estudiante']): ?><a href="<?= e(app_url($alerta['url'])) ?>"><?= e($alerta['estudiante']) ?></a> · <?php endif; ?><?= e($alerta['detalle']) ?></li>
