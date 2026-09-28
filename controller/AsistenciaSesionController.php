@@ -44,6 +44,12 @@ final class AsistenciaSesionController
         if ($sesion['estado_periodo'] !== 'activa') {
             return 'El período de esta sesión está cerrado: la asistencia ya no se puede modificar.';
         }
+        if ($sesion['estado'] !== 'programada') {
+            return 'Esta sesión ya fue registrada o está cancelada: la asistencia no se puede modificar.';
+        }
+        if ((string) $sesion['fecha'] > date('Y-m-d')) {
+            return 'No se puede registrar asistencia de una sesión que todavía no ocurrió.';
+        }
 
         $estados = isset($input['estado']) && is_array($input['estado']) ? $input['estado'] : [];
         $minutos = isset($input['minutos']) && is_array($input['minutos']) ? $input['minutos'] : [];
@@ -52,6 +58,7 @@ final class AsistenciaSesionController
         $inscritos = $this->inscripciones->forGroup((int) $sesion['id_grupo']);
         $validIds = array_map(static fn ($i) => (int) $i['id_inscripcion'], $inscritos);
 
+        $registrados = 0;
         $connection = Database::connection();
         $connection->beginTransaction();
         try {
@@ -73,6 +80,11 @@ final class AsistenciaSesionController
                     }
                 }
                 $this->asistencias->upsert($sesionId, $inscripcionId, $estado, $min, $obs === '' ? null : $obs, $tutorUserId);
+                $registrados++;
+            }
+            if ($registrados === 0) {
+                $connection->rollBack();
+                return 'Marca la asistencia de al menos un inscrito antes de guardar.';
             }
             $this->sesiones->markRealizada($sesionId);
             $connection->commit();

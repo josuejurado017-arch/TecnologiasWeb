@@ -861,6 +861,10 @@ final class GruposController
                 $connection->rollBack();
                 return 'El grupo cambió de estado. Recarga la página.';
             }
+            if ($this->inscripciones->existsActive($grupoId, $studentId)) {
+                $connection->rollBack();
+                return 'El estudiante ya está inscrito en este grupo.';
+            }
             if ((int) $lock['cupo_ocupado'] >= (int) $lock['cupo_max']) {
                 $connection->rollBack();
                 return 'El grupo no tiene cupo libre.';

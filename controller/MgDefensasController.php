@@ -109,6 +109,10 @@ final class MgDefensasController
         $pdo->beginTransaction();
         try {
             (new MgExpediente())->lock($pdo, $expedienteId);
+            if ($this->defensas->programada($expedienteId, $etapa) !== null) {
+                $pdo->rollBack();
+                return [['Ya hay una defensa de ' . MgTribunal::ETAPAS[$etapa] . ' programada: reprográmala o cancélala.'], [], null];
+            }
             $id = $this->defensas->crear($pdo, $data + ['id_expediente' => $expedienteId, 'etapa' => $etapa], $userId);
             MgBitacora::registrar($pdo, 'defensa_programada', 'defensas_mg', $id, null, $data + ['etapa' => $etapa]);
             $pdo->commit();

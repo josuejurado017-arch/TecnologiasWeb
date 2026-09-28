@@ -47,6 +47,16 @@ final class EstadoCuenta
                 return sprintf('El tutor tiene %d grupo%s vigente%s. Asigna otro tutor a %s (Grupos → Cambiar tutor) antes de desactivar la cuenta.',
                     $n, $n === 1 ? '' : 's', $n === 1 ? '' : 's', $n === 1 ? 'ese grupo' : 'esos grupos');
             }
+            $mg = $pdo->prepare(
+                "SELECT COUNT(*) FROM asignaciones_tutor_mg a INNER JOIN expedientes_mg e ON e.id_expediente = a.id_expediente
+                 WHERE a.id_tutor = :t AND a.estado = 'vigente' AND e.estado = 'activo'"
+            );
+            $mg->execute(['t' => $cuenta['id_tutor']]);
+            $nMg = (int) $mg->fetchColumn();
+            if ($nMg > 0) {
+                return sprintf('El tutor dirige %d expediente%s vigente%s de Modalidad de Grado. Reasigna esos expedientes antes de desactivar la cuenta.',
+                    $nMg, $nMg === 1 ? '' : 's', $nMg === 1 ? '' : 's');
+            }
         }
         if ($cuenta['id_estudiante'] !== null) {
             $inscrito = $pdo->prepare(
@@ -56,6 +66,11 @@ final class EstadoCuenta
             $inscrito->execute(['e' => $cuenta['id_estudiante']]);
             if ((int) $inscrito->fetchColumn() > 0) {
                 return 'El estudiante está inscrito en un grupo vigente. Retíralo del grupo antes de desactivar la cuenta.';
+            }
+            $mgEst = $pdo->prepare("SELECT COUNT(*) FROM expedientes_mg WHERE id_estudiante = :e AND estado = 'activo'");
+            $mgEst->execute(['e' => $cuenta['id_estudiante']]);
+            if ((int) $mgEst->fetchColumn() > 0) {
+                return 'El estudiante tiene un expediente activo de Modalidad de Grado. Ciérralo o dale de baja allí antes de desactivar la cuenta.';
             }
         }
 
