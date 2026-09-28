@@ -10,6 +10,13 @@ El sistema incluye administracion de usuarios, catalogos academicos, perfiles, d
 
 El boton `Desactivar` realiza una baja logica cambiando el estado a `inactivo`; no elimina el historial del usuario.
 
+## Documentacion
+
+- [`docs/diagramas.md`](docs/diagramas.md): casos de uso, modelo entidad-relacion y arquitectura.
+- [`docs/manual-usuario.md`](docs/manual-usuario.md): manual de usuario por rol (Administrador, Tutor, Estudiante, Coordinacion de Modalidades de Grado).
+- [`docs/tabla-pruebas.md`](docs/tabla-pruebas.md): tabla de casos de prueba.
+- [`docs/analisis/plan-mg-ajustado.md`](docs/analisis/plan-mg-ajustado.md): diseno y decisiones del modulo Modalidades de Grado.
+
 ## Estructura
 
 - `php/`: puntos de entrada principales de la aplicacion.
@@ -68,7 +75,17 @@ El usuario `biblioteca_user` ya tiene permisos sobre `testdb`. La contrasena act
 
 ## Base de datos
 
-La base `testdb` debe existir antes de importar los scripts:
+**Opcion rapida (recomendada):** `db/init.sql` aplica el esquema completo (equivalente
+a las migraciones 001-048, sin las de datos demo/prueba 007, 027, 036 y 038) en un
+solo paso:
+
+```bash
+mysql -u administrador_mysql -p -e "CREATE DATABASE IF NOT EXISTS testdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql -u administrador_mysql -p testdb < db/init.sql
+```
+
+**Opcion paso a paso** (util para entender o auditar cada cambio): la base `testdb`
+debe existir antes de importar los scripts, en orden:
 
 ```bash
 # Usar una cuenta administrativa para crear tablas y relaciones.
@@ -81,6 +98,8 @@ mysql -u biblioteca_user -p testdb < db/005_student_catalog_permissions.sql
 mysql -u biblioteca_user -p testdb < db/006_tutor_permissions.sql
 mysql -u biblioteca_user -p testdb < db/008_tutorias_institucionales.sql
 mysql -u biblioteca_user -p testdb < db/009_tutoria_slots_especiales.sql
+# ...continuar en orden con el resto de db/0NN_*.sql hasta 048 (ver README abajo
+# para las que llevan una nota aparte: 040, 041, 042, 043, 044-048).
 ```
 
 `db/007_demo_production_data.sql` es solo para entornos de desarrollo o pruebas controladas. Crea cuentas activas con una contrasena conocida y no debe ejecutarse en produccion.
@@ -202,7 +221,7 @@ sudo usermod -aG docker "$USER"   # cerrar sesion y volver a entrar
 
 Configuracion: el mismo `.env` de la raiz alimenta a Compose. Copiar `.env.example` y definir `DB_PASSWORD` y `MYSQL_ROOT_PASSWORD`; `DB_HOST` y `DB_PORT` se ignoran porque Compose apunta al servicio `db`. `APP_URL` dentro del contenedor queda vacio (enlaces relativos), asi el sitio responde igual por `http://tutorias.local/`, por IP o por `http://localhost:8080/` en desarrollo.
 
-Primer arranque (aplica automaticamente las migraciones 001-006, 008 y 009 al crear el volumen):
+Primer arranque (aplica automaticamente todas las migraciones de esquema al crear el volumen: 001-006, 008-026, 028-035, 037, 039-048; ver los comentarios de `compose.yaml` para el detalle de por que 007, 027, 036 y 038 quedan fuera):
 
 ```bash
 cd "$HOME/TecnologiasWeb"
@@ -238,16 +257,22 @@ En Windows, para probar la imagen sin ocupar el puerto 80, usar `WEB_PORT=8080` 
 
 ## Servidor PHP local en Windows
 
-El archivo `.env` local usa el puerto `3307`, que corresponde al tunel SSH hacia MySQL de Ubuntu:
+**No usar `php -S 127.0.0.1:8000 router.php`:** el servidor embebido de PHP
+atiende una sola conexion a la vez, y las conexiones keep-alive del navegador
+(peor con varias pestañas) lo bloquean por completo ("se cae todo al
+recargar"). Usar Apache de XAMPP con un vhost en vez del servidor embebido:
+
+1. MySQL/MariaDB: `C:\xampp\mysql\bin\mysqld.exe --defaults-file=my.ini --standalone` (puerto `3306`, coincide con `.env`).
+2. Agregar un vhost a `C:\xampp\apache\conf\extra\httpd-vhosts.conf` que apunte
+   `DocumentRoot` a la raiz del repositorio en `127.0.0.1:8000`, con alias para
+   `Front/`, `usuarios/`, `css/` y `js/`, y las mismas `RewriteRule` que
+   `deploy/docker/apache-vhost.conf` (mismo router, sin prefijo `/php`).
+3. Arrancar Apache: `C:\xampp\apache\bin\httpd.exe`.
+
+La aplicacion local se abre en `http://127.0.0.1:8000/` y el CRUD en `http://127.0.0.1:8000/usuarios/`. Ambos procesos (mysqld y httpd) terminan cuando se cierra la terminal que los lanzo; hay que volver a iniciarlos en cada sesion de trabajo.
+
+Alternativa: si se prefiere apuntar a un MySQL remoto por SSH en vez del local, tunelizar el puerto y ajustar `DB_PORT` en `.env`:
 
 ```powershell
-ssh -N -L 3307:127.0.0.1:3306 josue@192.168.1.8
+ssh -N -L 3307:127.0.0.1:3306 usuario@servidor
 ```
-
-En otra terminal, desde la raiz del proyecto, iniciar PHP con el router:
-
-```powershell
-C:\php\php.exe -S 127.0.0.1:8000 router.php
-```
-
-La aplicacion local se abre en `http://127.0.0.1:8000/` y el CRUD en `http://127.0.0.1:8000/usuarios/`.
