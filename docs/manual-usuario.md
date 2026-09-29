@@ -128,6 +128,8 @@ reuniones). Tutor y estudiante ven **solo lo propio** desde *Mis tesistas
 |---|---|---|
 | Panel de grado | Coordinación/Auxiliar | Dashboard: expedientes por etapa, alertas activas. |
 | Expedientes | Coordinación/Auxiliar | Alta de expediente por estudiante (modalidad, cohorte), consulta y filtro por tutor/cohorte/etapa. |
+| Solicitar modalidad de grado | Estudiante | Declara si cursa el último semestre o ya egresó, elige la modalidad, propone un tema y adjunta su record o certificado de notas (foto o PDF, obligatorio). Solo desde el semestre 9 (parámetro editable por la Coordinación): por debajo, la opción no aparece. Ve el estado de su solicitud y, si la Coordinación la observa, la corrige y reenvía. |
+| Solicitudes | Coordinación | Bandeja con contador de pendientes: revisa el documento junto al carnet y los datos del estudiante y **aprueba** (crea el expediente, eligiendo cohorte y etapa), **observa** o **rechaza** con motivo. Busca por nombre, R.U. o carnet. |
 | Asignación de tutor | Coordinación | Asigna o reemplaza el tutor de un expediente; genera la carta de asignación. |
 | Mis tesistas (grado) | Tutor | Ve sus expedientes vigentes; **registra reuniones** ya realizadas (fecha, asistencia de ambos). |
 | Reuniones | Coordinación/Auxiliar (según `mg.validar`) | Valida, observa o corrige las reuniones registradas por los tutores. |
@@ -141,8 +143,10 @@ reuniones). Tutor y estudiante ven **solo lo propio** desde *Mis tesistas
 | Parámetros y plantillas | Coordinación | Ajustes numéricos (anticipación de tribunal, plazos) y plantillas de documento. |
 | Mi modalidad de grado | Estudiante | Ve su propio expediente, etapa, tutor y notas publicadas. |
 
+**Ingreso al proceso:** el estudiante que llega a esta etapa **solicita** su modalidad desde su cuenta (*Solicitar modalidad de grado*) adjuntando su documento de notas. La Coordinación recibe la notificación, verifica el documento a mano y aprueba, observa o rechaza. Al aprobar se crea su expediente y, mientras esté activo, el estudiante ve **solo** Modalidades de Grado (sin tutorías ni evaluaciones). Si el expediente se cierra sin aprobar, recupera el resto del portal. La Coordinación también puede crear expedientes directamente o importar un padrón.
+
 **Flujo típico (una etapa, MG1 o MG2):**
-1. Coordinación registra el expediente del estudiante y le asigna tutor.
+1. Coordinación aprueba la solicitud del estudiante (o registra el expediente) y le asigna tutor.
 2. El tutor registra sus reuniones de seguimiento a medida que ocurren.
 3. Coordinación (o el auxiliar, si tiene el permiso) valida cada reunión.
 4. Se registran los informes de avance por hito del calendario.

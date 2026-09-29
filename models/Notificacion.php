@@ -8,7 +8,7 @@ final class Notificacion
     {
         $limit = max(1, min($limit, 30));
         $statement = Database::connection()->prepare(
-            'SELECT id_notificacion, id_usuario, id_tutoria, tipo, titulo AS title, mensaje AS text, url AS href, leida, fecha_creacion, CASE WHEN tipo IN (\'tutoria_cancelada\', \'grupo_cancelado\', \'grupo_rechazado\', \'tutor_rechazado\', \'propuesta_rechazada\') THEN \'danger\' WHEN tipo IN (\'tutoria_confirmada\', \'tutoria_proxima\', \'grupo_confirmado\', \'grupo_aprobado\', \'tutor_aprobado\', \'ubicacion_grupo\', \'propuesta_aprobada\') THEN \'success\' WHEN tipo = \'evaluacion_pendiente\' THEN \'info\' ELSE \'warning\' END AS tone FROM notificaciones WHERE id_usuario = :id_usuario AND leida = 0 ORDER BY fecha_creacion DESC, id_notificacion DESC LIMIT ' . $limit
+            'SELECT id_notificacion, id_usuario, id_tutoria, tipo, titulo AS title, mensaje AS text, url AS href, leida, fecha_creacion, CASE WHEN tipo IN (\'tutoria_cancelada\', \'grupo_cancelado\', \'grupo_rechazado\', \'tutor_rechazado\', \'propuesta_rechazada\', \'mg_solicitud_rechazada\') THEN \'danger\' WHEN tipo IN (\'tutoria_confirmada\', \'tutoria_proxima\', \'grupo_confirmado\', \'grupo_aprobado\', \'tutor_aprobado\', \'ubicacion_grupo\', \'propuesta_aprobada\', \'mg_solicitud_aprobada\') THEN \'success\' WHEN tipo = \'evaluacion_pendiente\' THEN \'info\' ELSE \'warning\' END AS tone FROM notificaciones WHERE id_usuario = :id_usuario AND leida = 0 ORDER BY fecha_creacion DESC, id_notificacion DESC LIMIT ' . $limit
         );
         $statement->execute(['id_usuario' => $userId]);
 
@@ -545,5 +545,53 @@ final class Notificacion
         $statement->execute(['id_notificacion' => $id, 'id_usuario' => $userId]);
 
         return $statement->rowCount() > 0;
+    }
+
+    // ------------------------------------------------------------------
+    // Solicitudes de Modalidad de Grado (db/049)
+    // ------------------------------------------------------------------
+
+    /** Aviso a quienes deciden (Coordinacion MG y administradores) de una solicitud nueva o reenviada. */
+    public function notifyMgSolicitudNueva(PDO $pdo, int $solicitudId, string $estudiante, string $modalidad, bool $reenvio): void
+    {
+        $statement = $pdo->query(
+            "SELECT u.id_usuario FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol
+             WHERE r.nombre_rol IN ('coordinador_mg', 'administrador') AND u.estado = 'activo'"
+        );
+        foreach (array_map('intval', array_column($statement->fetchAll(), 'id_usuario')) as $destinatario) {
+            $this->create(
+                $pdo,
+                $destinatario,
+                null,
+                'mg_solicitud_nueva',
+                $reenvio ? 'Solicitud de grado corregida' : 'Nueva solicitud de modalidad de grado',
+                mb_substr($estudiante . ' solicita ' . $modalidad . '. Revisa su documento y decide.', 0, 500),
+                '/mg/solicitudes/ver.php?id=' . $solicitudId,
+                'mg_solicitud_nueva:' . $solicitudId . ':' . $destinatario . ':' . microtime(true)
+            );
+        }
+    }
+
+    /** Resultado de la revision para el estudiante: aprobada, observada o rechazada. */
+    public function notifyMgSolicitudResuelta(PDO $pdo, int $studentUserId, int $solicitudId, string $estado, string $modalidad, ?string $motivo): void
+    {
+        $titulos = [
+            'aprobada' => 'Solicitud de grado aprobada',
+            'observada' => 'Tu solicitud de grado tiene observaciones',
+            'rechazada' => 'Solicitud de grado rechazada',
+        ];
+        $mensaje = $estado === 'aprobada'
+            ? 'Tu solicitud de ' . $modalidad . ' fue aprobada. Ya puedes seguir tu proceso desde Mi modalidad de grado.'
+            : 'Solicitud de ' . $modalidad . ': ' . ($motivo ?? '');
+        $this->create(
+            $pdo,
+            $studentUserId,
+            null,
+            'mg_solicitud_' . $estado,
+            $titulos[$estado] ?? 'Solicitud de grado',
+            mb_substr($mensaje, 0, 500),
+            '/mg/mi-modalidad.php',
+            'mg_solicitud_' . $estado . ':' . $solicitudId . ':' . microtime(true)
+        );
     }
 }

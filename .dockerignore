@@ -13,3 +13,5 @@ compose.yaml
 # Respaldos y datos locales que no deben entrar a la imagen.
 respaldo*.sql
 *.bak
+
+storage/

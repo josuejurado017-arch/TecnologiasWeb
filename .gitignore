@@ -15,3 +15,6 @@ respaldo*.sql
 *.dump
 *.log
 *.tmp
+
+# Documentos subidos por estudiantes (MG solicitudes): datos, no codigo.
+storage/mg_solicitudes/

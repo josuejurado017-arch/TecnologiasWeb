@@ -29,6 +29,7 @@ if [[ "${source_root}" != "${target_root}" ]]; then
     rsync -a --delete \
         --exclude='.git/' \
         --exclude='.env' \
+        --exclude='storage/' \
         "${source_root}/" "${target_root}/"
     install -o root -g www-data -m 0640 "${source_root}/.env" "${target_root}/.env"
 else
@@ -46,6 +47,9 @@ if [[ "${source_root}" != "${target_root}" ]]; then
     find "${target_root}" -type d -exec chmod 0750 {} +
     find "${target_root}" -type f -exec chmod 0640 {} +
 fi
+
+# Carpeta de documentos de solicitud de grado (db/049): unica con escritura, fuera de php/.
+install -d -o www-data -g www-data -m 0750 "${target_root}/storage" "${target_root}/storage/mg_solicitudes"
 
 install -o root -g root -m 0644 \
     "${source_root}/deploy/apache/tecnologiasweb.conf" \

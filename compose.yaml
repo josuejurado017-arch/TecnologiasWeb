@@ -18,6 +18,9 @@ services:
       DB_USER: ${DB_USER:-biblioteca_user}
       DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env}
       TZ: ${TZ:-America/La_Paz}
+    volumes:
+      # Documentos que suben los estudiantes al solicitar Modalidad de Grado (db/049).
+      - mg_storage:/var/www/html/TecnologiasWeb/storage
     depends_on:
       db:
         condition: service_healthy
@@ -99,6 +102,8 @@ services:
       - ./db/047_mg_defensas.sql:/docker-entrypoint-initdb.d/047_mg_defensas.sql:ro
       # 048: MG MVP-2, reuniones, informes de avance y alertas atendidas.
       - ./db/048_mg_seguimiento.sql:/docker-entrypoint-initdb.d/048_mg_seguimiento.sql:ro
+      # 049: solicitud del estudiante y aprobacion de la Coordinacion (con documento).
+      - ./db/049_mg_solicitudes.sql:/docker-entrypoint-initdb.d/049_mg_solicitudes.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s
@@ -107,3 +112,4 @@ services:
 
 volumes:
   db_data:
+  mg_storage:

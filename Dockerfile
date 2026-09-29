@@ -18,9 +18,12 @@ RUN a2ensite tutorias \
 WORKDIR /var/www/html/TecnologiasWeb
 COPY . .
 
-# Apache solo necesita leer el codigo; nada se escribe en disco.
+# Apache solo necesita leer el codigo. La unica carpeta con escritura es storage/, fuera
+# de la raiz publica: guarda los documentos de solicitud de Modalidades de Grado (db/049).
+# compose.yaml la monta como volumen para que sobreviva a reconstruir la imagen.
 RUN chown -R root:www-data /var/www/html/TecnologiasWeb \
     && find /var/www/html/TecnologiasWeb -type d -exec chmod 0750 {} + \
-    && find /var/www/html/TecnologiasWeb -type f -exec chmod 0640 {} +
+    && find /var/www/html/TecnologiasWeb -type f -exec chmod 0640 {} + \
+    && install -d -o www-data -g www-data -m 0750 /var/www/html/TecnologiasWeb/storage/mg_solicitudes
 
 EXPOSE 80

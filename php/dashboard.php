@@ -7,6 +7,11 @@ if (Auth::isMgRole()) {
     header('Location: ' . app_url('mg/'));
     exit;
 }
+// El estudiante con expediente de grado activo trabaja solo en Modalidades de Grado.
+if (Auth::enModoGrado()) {
+    header('Location: ' . app_url('mg/mi-modalidad.php'));
+    exit;
+}
 Auth::requireModule('dashboard');
 
 $user = Auth::user();

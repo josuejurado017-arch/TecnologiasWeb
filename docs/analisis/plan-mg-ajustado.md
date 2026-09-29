@@ -99,6 +99,16 @@ Decisiones de MVP-2 [PROPUESTA]:
 
 P3 queda como en el plan original. C-02 (3 o 4 informes) se resuelve cargando hitos de informe en el calendario, sin tocar código.
 
+## 3c. Solicitud del estudiante (Sprint 6)
+
+El ingreso deja de ser solo administrativo: el estudiante **solicita** y la Coordinación decide. [PROPUESTA] pendiente de validar con el Coordinador (qué documento acredita la habilitación y si el auxiliar también decide).
+
+16b. **Situación y semestre mínimo** [PENDIENTE confirmar con el Coordinador]: el estudiante declara si cursa el último semestre (record parcial, entra a la etapa previa de talleres) o ya egresó (certificado completo, puede entrar a MG1). Parámetro `semestre_minimo_solicitud_mg` = 9 (propuesta): por debajo de ese semestre la opción no aparece y el servidor rechaza la solicitud; un egresado con semestre desactualizado pide a la Coordinación que lo corrija. La Coordinación decide la etapa al aprobar.
+17. **Solicitud con documento obligatorio** (`solicitudes_mg`, `db/049`): modalidad, tema tentativo y foto/PDF del documento de notas (contenido verificado, máx. 8 MB). Una sola solicitud abierta por estudiante (columna generada + `UNIQUE`). El sistema no verifica las notas: la revisión es humana, apoyada en el carnet de identidad, que se pide en la solicitud si la cuenta no lo tiene.
+18. **Decisión de la Coordinación** (`mg.solicitudes`, solo `coordinador_mg` y administrador): aprobar (crea el expediente con `origen = solicitud`, cohorte y etapa elegidas), observar (el estudiante corrige y reenvía) o rechazar, ambos con motivo. Notificaciones a ambos lados y bitácora en cada paso.
+19. **Modo solo grado**: con un expediente activo el estudiante pierde acceso a tutorías y evaluaciones (`Auth::enModoGrado`) y su inicio es *Mi modalidad de grado*. Reprobado, abandono o retirado devuelven el acceso.
+20. **Documentos fuera de la raíz pública** (`storage/mg_solicitudes/`, volumen `mg_storage`), nombre aleatorio, servidos por `php/mg/solicitudes/documento.php` solo al dueño y a la Coordinación. Esto convive con RN-MG-11 (sin archivos en reuniones): aquel límite es de las reuniones, no de la solicitud.
+
 ## 4. Migraciones
 
 | Archivo | Contenido |
@@ -108,6 +118,7 @@ P3 queda como en el plan original. C-02 (3 o 4 informes) se resuelve cargando hi
 | `db/046_mg_tutores_documentos.sql` | `asignaciones_tutor_mg`, `plantillas_documento_mg` (3 provisionales), `documentos_generados_mg`, `contadores_documento_mg` |
 | `db/047_mg_defensas.sql` | `tribunales_mg`, `defensas_mg`, `calificaciones_mg` |
 | `db/048_mg_seguimiento.sql` | `reuniones_mg`, `informes_avance_mg` (UNIQUE expediente+hito), `alertas_atendidas_mg`, 2 parámetros nuevos |
+| `db/049_mg_solicitudes.sql` | `solicitudes_mg` (estado, documento, revisor, expediente creado) y `expedientes_mg.origen` gana `solicitud` |
 
 Aplicar en orden con `mysql ... testdb < db/04x_*.sql` (nunca pegando el SQL en la consola).
 

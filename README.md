@@ -76,7 +76,7 @@ El usuario `biblioteca_user` ya tiene permisos sobre `testdb`. La contrasena act
 ## Base de datos
 
 **Opcion rapida (recomendada):** `db/init.sql` aplica el esquema completo (equivalente
-a las migraciones 001-048, sin las de datos demo/prueba 007, 027, 036 y 038) en un
+a las migraciones 001-049, sin las de datos demo/prueba 007, 027, 036 y 038) en un
 solo paso:
 
 ```bash
@@ -98,8 +98,8 @@ mysql -u biblioteca_user -p testdb < db/005_student_catalog_permissions.sql
 mysql -u biblioteca_user -p testdb < db/006_tutor_permissions.sql
 mysql -u biblioteca_user -p testdb < db/008_tutorias_institucionales.sql
 mysql -u biblioteca_user -p testdb < db/009_tutoria_slots_especiales.sql
-# ...continuar en orden con el resto de db/0NN_*.sql hasta 048 (ver README abajo
-# para las que llevan una nota aparte: 040, 041, 042, 043, 044-048).
+# ...continuar en orden con el resto de db/0NN_*.sql hasta 049 (ver README abajo
+# para las que llevan una nota aparte: 040, 041, 042, 043, 044-049).
 ```
 
 `db/007_demo_production_data.sql` es solo para entornos de desarrollo o pruebas controladas. Crea cuentas activas con una contrasena conocida y no debe ejecutarse en produccion.
@@ -187,13 +187,15 @@ Luego aplicar `db/042_division_grupos.sql` (idempotente). Con un grupo lleno, la
 
 Luego aplicar `db/043_tipos_tutoria.sql` (idempotente). Agrega **tipos de tutoría** con nombre libre (*Períodos → Tipos de tutoría*): Pregrado, Postgrado, Nivelación... Cada período es de un tipo, y puede haber **un período activo por tipo**, así que tutorías de distinto tipo corren en paralelo. La duración máxima de un período la fija su tipo (vacío = sin tope); los períodos existentes pasan a *Pregrado*, que conserva el tope de 42 días. El selector **Tipo de tutoría** de la barra superior define qué período activo muestra todo el portal (grupos, ofertas, estudiantes, contadores, resumen). El motor de asignación no depende de ese selector: trabaja siempre sobre el período de cada solicitud o grupo.
 
-### Modalidades de Grado (044-048)
+### Modalidades de Grado (044-049)
 
 Aplicar en orden `db/044_mg_base.sql`, `db/045_mg_expedientes.sql`, `db/046_mg_tutores_documentos.sql` y `db/047_mg_defensas.sql` (idempotentes, siempre con `mysql ... testdb < archivo.sql`). Agregan el módulo **Modalidades de Grado** en `/mg/`, separado del de tutorías: expedientes por estudiante (MG1 → MG2) agrupados por cohorte, tutor con historial y carta de asignación automática, tribunales, defensas con control de choques, citaciones, notas con bitácora, reportes por estudiante y por cohorte (CSV) e importación del padrón por CSV.
 
 Roles nuevos: `coordinador_mg` y `auxiliar_mg` (se crean en *Cuentas de acceso*; su inicio es `/mg/`). Los permisos por acción están en `includes/Auth.php` (`Auth::canDo`). Tutor y estudiante ven lo propio en *Mis tesistas (grado)* y *Mi modalidad de grado*. Las cifras dudosas de las entrevistas son parámetros en *Parámetros y plantillas* y solo advierten. Diseño y decisiones: `docs/analisis/plan-mg-ajustado.md`; preguntas pendientes: `docs/analisis/preguntas-coordinador.md`.
 
 `db/048_mg_seguimiento.sql` (MVP-2) agrega el seguimiento: el tutor vigente registra sus **reuniones** con asistencia de ambos (desde *Mis tesistas*), la Coordinación las valida u observa en *Reuniones*, los **informes de avance** se registran por hito de informe del calendario, y el panel de **Alertas** (A1-A9) se calcula al abrirlo, sin cron. El panel de grado es el dashboard del Coordinador; la *Línea de tiempo* de cada cohorte muestra el semáforo de hitos; la *Bitácora* filtra por usuario, acción y fechas y exporta CSV.
+
+`db/049_mg_solicitudes.sql` agrega la **solicitud del estudiante**: desde su cuenta normal el estudiante elige modalidad, propone un tema y declara si cursa el último semestre o ya egresó y adjunta su record o certificado de notas, obligatorio (foto o PDF, hasta 8 MB; el semestre mínimo para solicitar es el parámetro `semestre_minimo_solicitud_mg`, 9 por defecto: por debajo de ese semestre la opción no aparece ni se acepta); la Coordinación (`coordinador_mg` y administrador) recibe una notificación, revisa el documento junto a los datos y el carnet del estudiante en *Solicitudes* y lo **aprueba** (crea el expediente con cohorte y etapa inicial: quien aún cursa entra a la etapa previa de talleres y el egresado a MG1), lo **observa** (el estudiante corrige y reenvía) o lo **rechaza** con motivo. Con un expediente de grado activo el estudiante trabaja solo en Modalidades de Grado: se le ocultan y bloquean tutorías y evaluaciones. Los documentos se guardan **fuera de la raíz pública** (`storage/mg_solicitudes/`, volumen `mg_storage` en Docker) y solo los sirve PHP al dueño y a la Coordinación.
 
 **Inscripción tardía:** como en las materias de la UPDS, a un grupo se puede entrar hasta 4 días después de su primera sesión (`Grupo::DIAS_INSCRIPCION_TARDIA`). Después el motor ya no inscribe en ese grupo y la coordinación tampoco puede inscribir a mano.
 
@@ -221,7 +223,7 @@ sudo usermod -aG docker "$USER"   # cerrar sesion y volver a entrar
 
 Configuracion: el mismo `.env` de la raiz alimenta a Compose. Copiar `.env.example` y definir `DB_PASSWORD` y `MYSQL_ROOT_PASSWORD`; `DB_HOST` y `DB_PORT` se ignoran porque Compose apunta al servicio `db`. `APP_URL` dentro del contenedor queda vacio (enlaces relativos), asi el sitio responde igual por `http://tutoriasupds.local/`, por IP o por `http://localhost:8080/` en desarrollo.
 
-Primer arranque (aplica automaticamente todas las migraciones de esquema al crear el volumen: 001-006, 008-026, 028-035, 037, 039-048; ver los comentarios de `compose.yaml` para el detalle de por que 007, 027, 036 y 038 quedan fuera):
+Primer arranque (aplica automaticamente todas las migraciones de esquema al crear el volumen: 001-006, 008-026, 028-035, 037, 039-049; ver los comentarios de `compose.yaml` para el detalle de por que 007, 027, 036 y 038 quedan fuera):
 
 ```bash
 cd "$HOME/TecnologiasWeb"

@@ -15,6 +15,19 @@ $defensas = new MgDefensa();
 $tribunales = new MgTribunal();
 $reunionesModelo = new MgReunion();
 $informesModelo = new MgInforme();
+$solicitudesModelo = new MgSolicitud();
+$solicitudes = $estudianteId ? $solicitudesModelo->porEstudiante($estudianteId) : [];
+$solicitudAbierta = null;
+foreach ($solicitudes as $fila) {
+    if (in_array($fila['estado'], MgSolicitud::ABIERTAS, true)) {
+        $solicitudAbierta = $fila;
+        break;
+    }
+}
+$perfilEstudiante = $solicitudesModelo->perfilEstudiante((int) Auth::user()['id_usuario']);
+$puedeSolicitar = $estudianteId && $solicitudAbierta === null && !$solicitudesModelo->tieneExpedienteActivo($estudianteId)
+    && MgSolicitud::semestreHabilitado((int) ($perfilEstudiante['semestre'] ?? 0));
+[$message] = mg_flash(['enviada' => 'Solicitud enviada. La Coordinación la revisará y te avisará aquí.', 'reenviada' => 'Solicitud corregida y reenviada a la Coordinación.']);
 
 require dirname(__DIR__, 2) . '/views/layouts/header.php';
 ?>
@@ -25,7 +38,24 @@ require dirname(__DIR__, 2) . '/views/layouts/header.php';
             <p>Tu proceso de grado: etapa, tutor, tribunales, defensas y notas publicadas por la Coordinación.</p>
         </div>
     </div>
-    <?php if (!$expedientes): ?><p class="empty-state card">No tienes un expediente de Modalidades de Grado.</p><?php endif; ?>
+    <?php if (!empty($message)): ?><p class="success" role="status"><?= e($message) ?></p><?php endif; ?>
+    <?php if ($solicitudes): ?>
+        <section class="card mg-seccion">
+            <div class="section-heading"><div><span class="eyebrow">Solicitudes</span><h2>Mi solicitud de modalidad de grado</h2></div></div>
+            <ul class="mg-lista">
+                <?php foreach ($solicitudes as $fila): ?>
+                    <li><?= e($fila['modalidad']) ?> (<?= e(MgSolicitud::SITUACIONES[$fila['situacion']] ?? '') ?>) · <?= mg_badge_solicitud((string) $fila['estado']) ?> · enviada el <?= e(mg_fecha_corta($fila['fecha_solicitud'])) ?>
+                        <?php if ($fila['estado'] === 'pendiente'): ?> · en revisión por la Coordinación<?php endif; ?>
+                        <?php if ($fila['motivo_revision']): ?> · <em><?= e($fila['motivo_revision']) ?></em><?php endif; ?>
+                        · <a href="<?= e(app_url('mg/solicitudes/documento.php?id=' . (int) $fila['id_solicitud'])) ?>" target="_blank" rel="noopener">Mi documento</a>
+                        <?php if ($fila['estado'] === 'observada'): ?> · <a href="<?= e(app_url('mg/solicitar.php')) ?>"><strong>Corregir y reenviar</strong></a><?php endif; ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </section>
+    <?php endif; ?>
+    <?php if (!$expedientes): ?>
+        <p class="empty-state card">No tienes un expediente de Modalidades de Grado.<?php if ($puedeSolicitar): ?> <a class="button" href="<?= e(app_url('mg/solicitar.php')) ?>">Solicitar modalidad de grado</a><?php endif; ?></p>
+    <?php endif; ?>
     <?php foreach ($expedientes as $item): ?>
         <?php $id = (int) $item['id_expediente']; ?>
         <?php $notas = $defensas->notasPorEtapa($id, true); ?>

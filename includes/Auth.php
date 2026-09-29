@@ -110,7 +110,42 @@ final class Auth
             return true;
         }
 
+        // Con un expediente de grado activo el estudiante trabaja solo en Modalidades de
+        // Grado: se le cierran las tutorias y evaluaciones (db/049).
+        if ($role === 'estudiante' && in_array($module, ['tutorias', 'evaluaciones'], true) && self::enModoGrado()) {
+            return false;
+        }
+
         return in_array($module, self::ROLE_MODULES[$role] ?? [], true);
+    }
+
+    /**
+     * Estudiante con un expediente de Modalidades de Grado activo: su portal es solo el
+     * de grado. Si el expediente se cierra sin aprobar (reprobado, abandono, retirado)
+     * o aun no existe, vuelve a ver las tutorias. Se consulta una vez por peticion.
+     */
+    public static function enModoGrado(): bool
+    {
+        static $cache = [];
+        if (!self::check() || (self::user()['nombre_rol'] ?? '') !== 'estudiante') {
+            return false;
+        }
+        $userId = (int) self::user()['id_usuario'];
+        if (!isset($cache[$userId])) {
+            try {
+                $consulta = Database::connection()->prepare(
+                    "SELECT 1 FROM expedientes_mg e INNER JOIN estudiantes es ON es.id_estudiante = e.id_estudiante
+                     WHERE es.id_usuario = :u AND e.estado = 'activo' LIMIT 1"
+                );
+                $consulta->execute(['u' => $userId]);
+                $cache[$userId] = (bool) $consulta->fetchColumn();
+            } catch (Throwable $exception) {
+                error_log('Modo grado: ' . $exception->getMessage());
+                $cache[$userId] = false;
+            }
+        }
+
+        return $cache[$userId];
     }
 
     public static function requireModule(string $module): void
@@ -134,16 +169,19 @@ final class Auth
      * 'mg.informe' = registrar informes en nombre del tutor (HU-037);
      * 'mg.alertas' = panel de alertas y marcarlas atendidas (HU-038).
      * El tutor registra sus reuniones e informes con 'mg.propio' si es el tutor vigente.
+     * Solicitudes: 'mg.solicitar' (estudiante: enviar y corregir la propia) y
+     * 'mg.solicitudes' (Coordinacion: ver el documento y aprobar, observar o rechazar).
      */
     private const MG_ACTIONS = [
         'coordinador_mg' => ['mg.ver', 'mg.parametros', 'mg.catalogo', 'mg.importar', 'mg.expediente', 'mg.tutor',
             'mg.tribunal', 'mg.defensa', 'mg.calificacion', 'mg.documentos', 'mg.reportes', 'mg.bitacora',
-            'mg.validar', 'mg.informe', 'mg.alertas'],
+            'mg.validar', 'mg.informe', 'mg.alertas', 'mg.solicitudes'],
         // [PENDIENTE] cargos exactos del auxiliar (pregunta 1 al Coordinador). No valida reuniones (C-03).
         'auxiliar_mg' => ['mg.ver', 'mg.importar', 'mg.expediente', 'mg.tribunal', 'mg.defensa', 'mg.documentos', 'mg.reportes',
             'mg.informe', 'mg.alertas'],
         'tutor' => ['mg.propio'],
-        'estudiante' => ['mg.propio'],
+        // mg.solicitar = pedir la modalidad de grado con su documento de notas (db/049).
+        'estudiante' => ['mg.propio', 'mg.solicitar'],
     ];
 
     public static function canDo(string $action): bool
@@ -154,7 +192,7 @@ final class Auth
 
         $role = self::user()['nombre_rol'] ?? '';
         if ($role === 'administrador') {
-            return $action !== 'mg.propio';
+            return !in_array($action, ['mg.propio', 'mg.solicitar'], true);
         }
 
         return in_array($action, self::MG_ACTIONS[$role] ?? [], true);

@@ -50,6 +50,18 @@ function mg_badge_estado(string $estado): string
     return '<span class="badge ' . ($clases[$estado] ?? '') . '">' . e(MgExpediente::ESTADOS[$estado] ?? $estado) . '</span>';
 }
 
+function mg_badge_solicitud(string $estado): string
+{
+    $clases = ['pendiente' => 'badge-warning', 'observada' => 'badge-info', 'aprobada' => 'badge-success', 'rechazada' => 'badge-danger'];
+
+    return '<span class="badge ' . ($clases[$estado] ?? '') . '">' . e(MgSolicitud::ESTADOS[$estado] ?? $estado) . '</span>';
+}
+
+function mg_tamano_legible(int $bytes): string
+{
+    return $bytes >= 1048576 ? number_format($bytes / 1048576, 1) . ' MB' : max(1, (int) round($bytes / 1024)) . ' KB';
+}
+
 function mg_badge_evidencia(string $estado): string
 {
     $clases = ['confirmado' => 'badge-success', 'pendiente' => 'badge-warning', 'propuesta' => 'badge-info'];
